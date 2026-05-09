@@ -1,0 +1,2 @@
+Testing centroid object detection
+
