@@ -1,5 +1,5 @@
 {
-  "name": "torchjs",
+  "name": "on-device-fomo",
   "start_url": "./index.html",
   "display": "standalone",
   "icons": [
