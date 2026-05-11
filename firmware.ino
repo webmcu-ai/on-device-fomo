@@ -74,7 +74,7 @@ int TARGET_EPOCHS = 30;
 int VALIDATION_IMAGES = 3;  // last N images per class held out for validation (0 = disabled)
 
 // Detection threshold: only draw overlay when max cell confidence exceeds this
-const float myFomoThreshold = 0.4f;    // perhaps 0.65f if too many points
+const float myFomoThreshold = 0.37f;    // perhaps 0.35f to 0.45f f lower values for more identifications
 
 const int myThresholdPress = 1100;
 const int myThresholdRelease = 900;
@@ -1692,8 +1692,10 @@ void myActionInfer() {
             int ry1 = (int)(myClusters[c].minY * oH / FOMO_GRID);
             int rx2 = (int)((myClusters[c].maxX + 1) * oW / FOMO_GRID);
             int ry2 = (int)((myClusters[c].maxY + 1) * oH / FOMO_GRID);
+            u8g2.setColorIndex(0);   
+            u8g2.drawFrame(rx1+1, ry1+1, rx2 - rx1-1, ry2 - ry1-1);   // smaller black rectangle         
             u8g2.setColorIndex(1);
-            u8g2.drawFrame(rx1, ry1, rx2 - rx1, ry2 - ry1);
+            u8g2.drawFrame(rx1, ry1, rx2 - rx1, ry2 - ry1);           // bounding white rectangle
           }
 
           // --- Label bar at bottom ---
