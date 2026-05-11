@@ -5,7 +5,8 @@ Testing centroid object detection
 
 ChangeLOG
 
-
+## May 10, 2026
+v011 is working, not really well but working. I also now have a webpage to make bounding boxes  fomo-bounding-boxes01.html.
 ## May 9th, 2026   
 1. v004 Has augmented training I need to test these on the XIAO ML Kit
 v003 Did compile, have not tested yet, but raised a training issue with the centroid always in the middle
