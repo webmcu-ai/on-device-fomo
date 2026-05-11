@@ -1,0 +1,9 @@
+{
+  "name": "torchjs",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "icons": [
+    { "src": "https://webmcu-ai.github.io/pwa/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "https://webmcu-ai.github.io/pwa/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
