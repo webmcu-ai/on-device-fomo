@@ -81,7 +81,7 @@ function myPwaUpdateBtn() {
 async function myHandleAppAction() {
     if (!myPwaIsPaid()) {
         // Send user to pwa/index.html, which knows how to return here
-        window.location.href = 'pwa/';
+        window.location.href = './pwa.html';
         return;
     }
 
