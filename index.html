@@ -72,8 +72,8 @@
   <button id="myAppBtn" onclick="myHandleAppAction()"
     style="display:none; position:fixed; top:15px; right:15px; z-index:9999; cursor:pointer;">
   </button>
-  <link rel="manifest" href="./pwa/manifest.json">
-  <script src="./pwa/pwa.js"></script>
+  <link rel="manifest" href="pwa/manifest.json">
+  <script src="https://webmcu-ai.github.io/pwa/pwa.js"></script>
   <!-- When making your own version these pages are not needed. Ended here -->
 
   <!-- FILE LIST -->
@@ -314,46 +314,53 @@ myCanvas.addEventListener('mousedown', e => {
   myCurrentBox = null;
 });
 
-myCanvas.addEventListener('mousemove', e => {
+// Change this from myCanvas to window so it tracks even if the mouse leaves the canvas area
+window.addEventListener('mousemove', e => {
+  // Only execute if the student actually started a drawing action on the canvas
   if (!myDrawing || !myImg) return;
-  const r = myCanvas.getBoundingClientRect();
-  const cx = e.clientX - r.left;
-  const cy = e.clientY - r.top;
-  myCurrentBox = myNormaliseBox(myStartX, myStartY, cx, cy);
+
+  const myRect = myCanvas.getBoundingClientRect();
+  
+  // Calculate coordinates relative to the canvas
+  const myCurrentX = e.clientX - myRect.left;
+  const myCurrentY = e.clientY - myRect.top;
+
+  // myNormaliseBox already contains Math.max(0, ...) and Math.min(1, ...)
+  // This "clamps" the box to the edges of the image automatically.
+  myCurrentBox = myNormaliseBox(myStartX, myStartY, myCurrentX, myCurrentY);
+  
   myRedraw();
 });
 
-myCanvas.addEventListener('mouseup', e => {
+// Change this from myCanvas to window
+window.addEventListener('mouseup', e => {
   if (!myDrawing || !myImg) return;
   myDrawing = false;
+  
+  // If they let go outside the canvas, myCurrentBox still holds 
+  // the last valid coordinates from the 'mousemove' event.
   if (!myCurrentBox) return;
 
-  // Reject tiny accidental clicks (< 2% of image in either dimension)
+  // Reject tiny accidental clicks
   if ((myCurrentBox.x2 - myCurrentBox.x1) < 0.02 || (myCurrentBox.y2 - myCurrentBox.y1) < 0.02) {
     myCurrentBox = null;
     myRedraw();
     return;
   }
 
-  const fname = myImageFiles[myCurrentIdx].name;
-  if (!myAnnotations[fname]) myAnnotations[fname] = [];
-  myAnnotations[fname].push({ ...myCurrentBox });
+  const myFname = myImageFiles[myCurrentIdx].name;
+  if (!myAnnotations[myFname]) myAnnotations[myFname] = [];
+  myAnnotations[myFname].push({ ...myCurrentBox });
   myCurrentBox = null;
 
   myRedraw();
   myRenderJson();
   myUpdateBoxCount();
   myUpdateFileItem(myCurrentIdx);
-  mySaveJson();  // auto-save on every new box
+  mySaveJson();
 });
 
-myCanvas.addEventListener('mouseleave', () => {
-  if (myDrawing) {
-    myDrawing = false;
-    myCurrentBox = null;
-    myRedraw();
-  }
-});
+
 
 // Touch support for tablets
 myCanvas.addEventListener('touchstart', e => { e.preventDefault(); myCanvas.dispatchEvent(new MouseEvent('mousedown', myTouchToMouse(e))); }, { passive: false });
