@@ -5,403 +5,80 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FOMO Annotator</title>
 <style>
-  :root {
-    --bg: #0e0e0e;
-    --panel: #1a1a1a;
-    --border: #2e2e2e;
-    --accent: #00e5ff;
-    --accent2: #ff6b35;
-    --text: #e0e0e0;
-    --muted: #666;
-    --box: rgba(0,229,255,0.25);
-    --box-border: #00e5ff;
-    --done: #2a4a2a;
-    --done-text: #6fcf6f;
-  }
+  /* Essential layout only */
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Courier New', monospace;
-    font-size: 13px;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
+  body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-  /* ── HEADER ── */
-  #myHeader {
-    background: var(--panel);
-    border-bottom: 1px solid var(--border);
-    padding: 8px 12px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-shrink: 0;
-  }
-  #myHeader h1 {
-    font-size: 14px;
-    color: var(--accent);
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    white-space: nowrap;
-  }
-  #myFolderBtn {
-    background: var(--accent);
-    color: #000;
-    border: none;
-    padding: 5px 14px;
-    font-family: 'Courier New', monospace;
-    font-size: 12px;
-    font-weight: bold;
-    cursor: pointer;
-    letter-spacing: 1px;
-    flex-shrink: 0;
-  }
-  #myFolderBtn:hover { background: #00b8cc; }
-  #myFolderName {
-    color: var(--muted);
-    font-size: 11px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  #myStatus {
-    margin-left: auto;
-    font-size: 11px;
-    color: var(--accent2);
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
+  #myMain { display: flex; flex: 1; overflow: hidden; }
 
-  /* ── MAIN LAYOUT ── */
-  #myMain {
-    display: flex;
-    flex: 1;
-    overflow: hidden;
-  }
-
-  /* ── FILE LIST ── */
-  #myFileList {
-    width: 200px;
-    flex-shrink: 0;
-    background: var(--panel);
-    border-right: 1px solid var(--border);
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-  }
-  #myFileListHeader {
-    padding: 6px 10px;
-    font-size: 10px;
-    color: var(--muted);
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-  .myFileItem {
-    padding: 7px 10px;
-    cursor: pointer;
-    border-bottom: 1px solid var(--border);
-    font-size: 11px;
-    color: var(--text);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    transition: background 0.1s;
-  }
-  .myFileItem:hover { background: #222; }
-  .myFileItem.myActive { background: #1e2e2e; color: var(--accent); }
-  .myFileItem.myHasBoxes { color: var(--done-text); }
-  .myFileItem.myActive.myHasBoxes { background: #1a2e1a; }
-  .myDot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--border);
-    flex-shrink: 0;
-  }
-  .myDot.myFilled { background: var(--done-text); }
-  .myDot.myActive { background: var(--accent); }
+  #myFileList { width: 180px; flex-shrink: 0; overflow-y: auto; border-right: 1px solid #ccc; display: flex; flex-direction: column; }
+  .myFileItem { padding: 4px 8px; cursor: pointer; border-bottom: 1px solid #eee; }
+  .myFileItem.myActive { font-weight: bold; }
   .myFileName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  /* ── CANVAS AREA ── */
-  #myCanvasArea {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    position: relative;
-  }
-  #myToolbar {
-    background: var(--panel);
-    border-bottom: 1px solid var(--border);
-    padding: 6px 10px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-shrink: 0;
-    flex-wrap: wrap;
-  }
-  #myToolbar span { color: var(--muted); font-size: 11px; }
-  .myBtn {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 3px 10px;
-    font-family: 'Courier New', monospace;
-    font-size: 11px;
-    cursor: pointer;
-    letter-spacing: 1px;
-  }
-  .myBtn:hover { border-color: var(--accent); color: var(--accent); }
-  .myBtn.myDanger:hover { border-color: #ff4444; color: #ff4444; }
-  #myImgName {
-    color: var(--accent2);
-    font-size: 11px;
-    margin-left: 4px;
-  }
-  #myBoxCount {
-    color: var(--muted);
-    font-size: 11px;
-  }
+  #myCanvasArea { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  #myToolbar { padding: 4px 8px; display: flex; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; border-bottom: 1px solid #ccc; }
 
-  #myCanvasWrap {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    background: #111;
-    position: relative;
-  }
-  #myCanvas {
-    cursor: crosshair;
-    display: block;
-    image-rendering: pixelated;
-  }
+  #myCanvasWrap { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; background: #888; }
+  #myCanvas { cursor: crosshair; display: block; image-rendering: pixelated; }
 
-  /* ── JSON PANEL ── */
-  #myJsonPanel {
-    width: 260px;
-    flex-shrink: 0;
-    background: var(--panel);
-    border-left: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  #myJsonHeader {
-    padding: 6px 10px;
-    font-size: 10px;
-    color: var(--muted);
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-shrink: 0;
-  }
-  #myJsonSaveBtn {
-    background: var(--accent2);
-    color: #000;
-    border: none;
-    padding: 2px 8px;
-    font-family: 'Courier New', monospace;
-    font-size: 10px;
-    font-weight: bold;
-    cursor: pointer;
-    letter-spacing: 1px;
-  }
-  #myJsonSaveBtn:hover { background: #e05520; }
-  #myJsonDisplay {
-    flex: 1;
-    overflow-y: auto;
-    padding: 10px;
-  }
-  .myJsonEntry {
-    margin-bottom: 14px;
-    border: 1px solid var(--border);
-  }
-  .myJsonEntryHeader {
-    background: #222;
-    padding: 4px 8px;
-    font-size: 10px;
-    color: var(--accent2);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    cursor: pointer;
-  }
-  .myJsonEntryHeader:hover { background: #2a2a2a; }
-  .myJsonEntryBody {
-    padding: 6px 8px;
-  }
-  .myBoxRow {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 4px;
-    font-size: 10px;
-    color: var(--muted);
-  }
-  .myBoxRow span { color: var(--accent); }
-  .myDelBox {
-    background: transparent;
-    border: 1px solid #333;
-    color: #666;
-    font-size: 9px;
-    padding: 1px 4px;
-    cursor: pointer;
-    font-family: monospace;
-    margin-left: auto;
-  }
-  .myDelBox:hover { border-color: #ff4444; color: #ff4444; }
-  #myEmptyMsg {
-    color: var(--muted);
-    font-size: 11px;
-    text-align: center;
-    padding: 20px;
-    line-height: 1.8;
-  }
+  #myJsonPanel { width: 260px; flex-shrink: 0; border-left: 1px solid #ccc; display: flex; flex-direction: column; overflow: hidden; }
+  #myJsonHeader { padding: 4px 8px; border-bottom: 1px solid #ccc; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  #myJsonDisplay { flex: 1; overflow-y: auto; padding: 8px; }
 
-  /* ── EMPTY STATE ── */
-  #myEmptyState {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    color: var(--muted);
-    gap: 10px;
-    pointer-events: none;
-  }
-  #myEmptyState .myBig { font-size: 40px; }
-  #myEmptyState p { font-size: 12px; letter-spacing: 1px; }
-
-  /* ── BACKGROUND FOLDER BANNER ── */
-  #myBgBanner {
-    display: none;
-    background: #2a1f00;
-    border-bottom: 1px solid #a06000;
-    color: #ffb83f;
-    font-size: 11px;
-    padding: 5px 12px;
-    letter-spacing: 1px;
-    flex-shrink: 0;
-    text-align: center;
-  }
-  #myBgBanner b { color: #ffd080; }
-
-  /* ── DELETE IMAGE BUTTON ── */
-  .myBtn.myDelete:hover { border-color: #ff4444; color: #ff4444; }
-
-  /* ── CONFIRM MODAL ── */
-  #myConfirmModal {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.7);
-    z-index: 200;
-    align-items: center;
-    justify-content: center;
-  }
+  /* Modal overlay — needs position:fixed and display toggle */
+  #myConfirmModal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; }
   #myConfirmModal.myShow { display: flex; }
-  #myConfirmBox {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    padding: 20px 24px;
-    font-family: 'Courier New', monospace;
-    font-size: 12px;
-    color: var(--text);
-    max-width: 320px;
-    text-align: center;
-  }
-  #myConfirmBox p { margin-bottom: 14px; line-height: 1.7; }
-  #myConfirmBox b { color: #ff6666; }
-  #myConfirmBox .myConfirmBtns { display: flex; gap: 10px; justify-content: center; }
-  #myConfirmBox .myConfirmBtns button {
-    padding: 5px 18px;
-    font-family: 'Courier New', monospace;
-    font-size: 11px;
-    cursor: pointer;
-    border: 1px solid var(--border);
-    background: transparent;
-    color: var(--text);
-    letter-spacing: 1px;
-  }
-  #myConfirmYes { border-color: #ff4444 !important; color: #ff4444 !important; }
-  #myConfirmYes:hover { background: #ff4444 !important; color: #000 !important; }
-  #myConfirmNo:hover { border-color: var(--accent) !important; color: var(--accent) !important; }
+  #myConfirmBox { background: #fff; padding: 20px; max-width: 300px; text-align: center; }
+  #myConfirmBox p { margin-bottom: 12px; }
 
-  /* ── SAVE FLASH ── */
-  #mySaveFlash {
-    position: fixed;
-    top: 10px; right: 10px;
-    background: var(--done-text);
-    color: #000;
-    font-size: 11px;
-    font-weight: bold;
-    padding: 5px 12px;
-    letter-spacing: 1px;
-    opacity: 0;
-    transition: opacity 0.3s;
-    pointer-events: none;
-    z-index: 100;
-  }
+  /* Save flash — needs position:fixed and opacity toggle */
+  #mySaveFlash { position: fixed; top: 8px; right: 8px; padding: 4px 10px; background: #090; color: #fff; opacity: 0; pointer-events: none; }
   #mySaveFlash.myShow { opacity: 1; }
 
-  /* scrollbar */
-  ::-webkit-scrollbar { width: 4px; }
-  ::-webkit-scrollbar-track { background: var(--panel); }
-  ::-webkit-scrollbar-thumb { background: var(--border); }
+  #myBgBanner { display: none; padding: 4px 10px; background: #ffe8a0; border-bottom: 1px solid #c80; }
+
+  #myEmptyState { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; color: #fff; }
 </style>
 </head>
 <body>
 
 <!-- HEADER -->
-<div id="myHeader">
-  <h1>FOMO Annotator</h1>
-  <button id="myFolderBtn" onclick="myOpenFolder()">OPEN FOLDER</button>
+<div id="myHeader" style="padding: 4px 10px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #ccc; flex-shrink: 0;">
+  <strong>FOMO Annotator</strong>
+  <button id="myFolderBtn" onclick="myOpenFolder()">Open Folder</button>
   <span id="myFolderName">No folder selected</span>
-  <span id="myStatus"></span>
+  <span id="myStatus" style="margin-left: auto;"></span>
 </div>
 
 <!-- BACKGROUND FOLDER BANNER -->
 <div id="myBgBanner">
-  📂 Folder starts with <b>"0"</b> → this is a <b>background class</b>. No bounding boxes needed — just collect images here.
+  Folder starts with "0" — this is a background class. No bounding boxes needed, just collect images here.
 </div>
 
 <!-- CONFIRM MODAL -->
 <div id="myConfirmModal">
   <div id="myConfirmBox">
     <p id="myConfirmMsg">Delete this image?</p>
-    <div class="myConfirmBtns">
-      <button id="myConfirmYes" onclick="myConfirmDelete()">DELETE</button>
-      <button id="myConfirmNo" onclick="myCloseConfirm()">CANCEL</button>
-    </div>
+    <button id="myConfirmYes" onclick="myConfirmDelete()">DELETE</button>
+    <button id="myConfirmNo" onclick="myCloseConfirm()">CANCEL</button>
   </div>
 </div>
 
 <!-- MAIN -->
 <div id="myMain">
 
-  
   <!-- When making your own version these pages are not needed. Started here -->
-  <button id="myAppBtn" onclick="myHandleAppAction()" 
+  <button id="myAppBtn" onclick="myHandleAppAction()"
     style="display:none; position:fixed; top:15px; right:15px; z-index:9999; cursor:pointer;">
   </button>
-  <link rel="manifest" href="pwa/manifest.json">
-  <script src="https://webmcu-ai.github.io/pwa/pwa.js"></script>
+  <link rel="manifest" href="./pwa/manifest.json">
+  <script src="./pwa/pwa.js"></script>
   <!-- When making your own version these pages are not needed. Ended here -->
-  
-  
+
   <!-- FILE LIST -->
   <div id="myFileList">
-    <div id="myFileListHeader">Images</div>
+    <div style="padding: 4px 8px; border-bottom: 1px solid #ccc; font-size: 11px;">Images</div>
     <div id="myFileItems"></div>
   </div>
 
@@ -410,19 +87,18 @@
     <div id="myToolbar">
       <span id="myImgName">—</span>
       <span id="myBoxCount"></span>
-      <div style="margin-left:auto; display:flex; gap:6px;">
-        <button class="myBtn" onclick="myUndoLast()">UNDO</button>
-        <button class="myBtn myDanger" onclick="myClearBoxes()">CLEAR ALL</button>
-        <button class="myBtn myDelete" onclick="myAskDeleteImage()" title="Delete this image from disk and remove from JSON">🗑 DELETE IMG</button>
-        <button class="myBtn" onclick="myNavFile(-1)">◀ PREV</button>
-        <button class="myBtn" onclick="myNavFile(1)">NEXT ▶</button>
+      <div style="margin-left: auto; display: flex; gap: 4px;">
+        <button onclick="myUndoLast()">Undo</button>
+        <button onclick="myClearBoxes()">Clear All</button>
+        <button onclick="myAskDeleteImage()" title="Delete this image from disk and remove from JSON">Delete Img</button>
+        <button onclick="myNavFile(-1)">◀ Prev</button>
+        <button onclick="myNavFile(1)">Next ▶</button>
       </div>
     </div>
     <div id="myCanvasWrap">
       <div id="myEmptyState">
-        <div class="myBig">⊞</div>
-        <p>OPEN A CLASS FOLDER TO BEGIN</p>
-        <p style="font-size:10px; margin-top:4px;">DRAG TO DRAW BOUNDING BOXES</p>
+        <p>Open a class folder to begin</p>
+        <p>Drag to draw bounding boxes</p>
       </div>
       <canvas id="myCanvas"></canvas>
     </div>
@@ -431,13 +107,28 @@
   <!-- JSON PANEL -->
   <div id="myJsonPanel">
     <div id="myJsonHeader">
-      annotations.json
-      <button id="myJsonSaveBtn" onclick="mySaveJson()">SAVE</button>
-    </div>
-    <div id="myJsonDisplay">
-      <div id="myEmptyMsg">Open a folder and<br>draw boxes to begin.<br><br>
-        JSON saves automatically<br>to the class folder as<br><b style="color:var(--accent)">annotations.json</b>
+      <span>annotations.json</span>
+      <div style="display: flex; gap: 4px; align-items: center;">
+        <button id="myTabBoxes" onclick="myShowTab('boxes')"><u>Boxes</u></button>
+        <button id="myTabRaw"   onclick="myShowTab('raw')">Raw JSON</button>
+        <button onclick="mySaveJson()">Save</button>
       </div>
+    </div>
+
+    <!-- Boxes view (default) -->
+    <div id="myJsonDisplay">
+      <div id="myEmptyMsg" style="padding: 10px; font-size: 11px;">
+        Open a folder and draw boxes to begin.<br><br>
+        JSON saves automatically to the class folder as <b>annotations.json</b>
+      </div>
+    </div>
+
+    <!-- Raw JSON editor view -->
+    <div id="myRawJsonView" style="display: none; flex: 1; flex-direction: column; padding: 6px; gap: 4px;">
+      <textarea id="myRawJsonText" spellcheck="false"
+        style="flex: 1; width: 100%; height: 100%; font-family: monospace; font-size: 11px; resize: none;"></textarea>
+      <button onclick="myApplyRawJson()" style="width: 100%;">Apply Edits</button>
+      <div id="myRawJsonMsg" style="font-size: 11px; min-height: 14px;"></div>
     </div>
   </div>
 </div>
@@ -480,7 +171,7 @@ async function myOpenFolder() {
   try {
     myFolderHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
   } catch(e) {
-    if (e.name !== 'AbortError') mySetStatus('Error: ' + e.message, true);
+    if (e.name !== 'AbortError') mySetStatus('Error: ' + e.message);
     return;
   }
 
@@ -522,8 +213,7 @@ async function myOpenFolder() {
   mySetStatus(myImageFiles.length + ' images found');
 
   // Show banner if folder name starts with "0" (background class)
-  const myBanner = document.getElementById('myBgBanner');
-  myBanner.style.display = myFolderHandle.name.startsWith('0') ? 'block' : 'none';
+  document.getElementById('myBgBanner').style.display = myFolderHandle.name.startsWith('0') ? 'block' : 'none';
 
   if (myImageFiles.length > 0) myLoadImage(0);
 }
@@ -537,19 +227,15 @@ function myBuildFileList() {
   myImageFiles.forEach((f, idx) => {
     const hasBoxes = myAnnotations[f.name] && myAnnotations[f.name].length > 0;
     const div = document.createElement('div');
-    div.className = 'myFileItem' + (hasBoxes ? ' myHasBoxes' : '') + (idx === myCurrentIdx ? ' myActive' : '');
+    div.className = 'myFileItem' + (idx === myCurrentIdx ? ' myActive' : '');
     div.id = 'myFile_' + idx;
     div.onclick = () => myLoadImage(idx);
-
-    const dot = document.createElement('div');
-    dot.className = 'myDot' + (hasBoxes ? ' myFilled' : '') + (idx === myCurrentIdx ? ' myActive' : '');
+    div.title = f.name;
 
     const nameSpan = document.createElement('span');
     nameSpan.className = 'myFileName';
-    nameSpan.title = f.name;
-    nameSpan.textContent = f.name;
+    nameSpan.textContent = (hasBoxes ? '✓ ' : '  ') + f.name;
 
-    div.appendChild(dot);
     div.appendChild(nameSpan);
     container.appendChild(div);
   });
@@ -561,9 +247,8 @@ function myUpdateFileItem(idx) {
   const f = myImageFiles[idx];
   const hasBoxes = myAnnotations[f.name] && myAnnotations[f.name].length > 0;
   const isActive = idx === myCurrentIdx;
-  el.className = 'myFileItem' + (hasBoxes ? ' myHasBoxes' : '') + (isActive ? ' myActive' : '');
-  const dot = el.querySelector('.myDot');
-  dot.className = 'myDot' + (hasBoxes ? ' myFilled' : '') + (isActive ? ' myActive' : '');
+  el.className = 'myFileItem' + (isActive ? ' myActive' : '');
+  el.querySelector('.myFileName').textContent = (hasBoxes ? '✓ ' : '  ') + f.name;
 }
 
 // ======================================================
@@ -773,7 +458,7 @@ function myNavFile(dir) {
 
 // Keyboard shortcuts
 document.addEventListener('keydown', e => {
-  if (e.target.tagName === 'INPUT') return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
   if (e.key === 'ArrowRight' || e.key === 'd') myNavFile(1);
   if (e.key === 'ArrowLeft'  || e.key === 'a') myNavFile(-1);
   if (e.key === 'z' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); myUndoLast(); }
@@ -799,44 +484,42 @@ function myRenderJson() {
   const entries = Object.entries(myAnnotations).filter(([, boxes]) => boxes && boxes.length > 0);
 
   if (entries.length === 0) {
-    panel.innerHTML = '<div id="myEmptyMsg">Draw boxes on images.<br><br>JSON auto-saves to<br><b style="color:var(--accent)">annotations.json</b><br>in the class folder.</div>';
-    return;
+    panel.innerHTML = '<div id="myEmptyMsg" style="padding:10px; font-size:11px;">Draw boxes on images.<br><br>JSON auto-saves to <b>annotations.json</b> in the class folder.</div>';
+  } else {
+    panel.innerHTML = '';
+    entries.forEach(([fname, boxes]) => {
+      const isActive = myImageFiles[myCurrentIdx]?.name === fname;
+      const div = document.createElement('div');
+      div.style.marginBottom = '10px';
+      if (isActive) div.style.fontWeight = 'bold';
+
+      const header = document.createElement('div');
+      header.style.cursor = 'pointer';
+      header.innerHTML = `${fname} (${boxes.length} box${boxes.length > 1 ? 'es' : ''})`;
+      header.onclick = () => {
+        const idx = myImageFiles.findIndex(f => f.name === fname);
+        if (idx >= 0) myLoadImage(idx);
+      };
+
+      const body = document.createElement('div');
+      body.style.paddingLeft = '8px';
+      body.style.fontSize = '11px';
+      boxes.forEach((b, i) => {
+        const row = document.createElement('div');
+        row.innerHTML =
+          `#${i+1} x1:${b.x1.toFixed(3)} y1:${b.y1.toFixed(3)} x2:${b.x2.toFixed(3)} y2:${b.y2.toFixed(3)} ` +
+          `<button onclick="myDeleteBox('${fname}',${i})">✕</button>`;
+        body.appendChild(row);
+      });
+
+      div.appendChild(header);
+      div.appendChild(body);
+      panel.appendChild(div);
+    });
   }
 
-  panel.innerHTML = '';
-  entries.forEach(([fname, boxes]) => {
-    const isActive = myImageFiles[myCurrentIdx]?.name === fname;
-    const div = document.createElement('div');
-    div.className = 'myJsonEntry';
-    if (isActive) div.style.borderColor = 'var(--accent)';
-
-    const header = document.createElement('div');
-    header.className = 'myJsonEntryHeader';
-    header.innerHTML = `<span>${fname}</span><span style="color:var(--muted)">${boxes.length} box${boxes.length > 1 ? 'es' : ''}</span>`;
-    header.onclick = () => {
-      const idx = myImageFiles.findIndex(f => f.name === fname);
-      if (idx >= 0) myLoadImage(idx);
-    };
-
-    const body = document.createElement('div');
-    body.className = 'myJsonEntryBody';
-    boxes.forEach((b, i) => {
-      const row = document.createElement('div');
-      row.className = 'myBoxRow';
-      row.innerHTML = `
-        <span>#${i+1}</span>
-        x1:<span>${b.x1.toFixed(3)}</span>
-        y1:<span>${b.y1.toFixed(3)}</span>
-        x2:<span>${b.x2.toFixed(3)}</span>
-        y2:<span>${b.y2.toFixed(3)}</span>
-        <button class="myDelBox" onclick="myDeleteBox('${fname}',${i})">✕</button>`;
-      body.appendChild(row);
-    });
-
-    div.appendChild(header);
-    div.appendChild(body);
-    panel.appendChild(div);
-  });
+  // Keep raw view in sync if it is currently showing
+  if (myCurrentTab === 'raw') myRefreshRawJson();
 }
 
 function myDeleteBox(fname, idx) {
@@ -856,8 +539,7 @@ function myAskDeleteImage() {
   if (myCurrentIdx < 0 || myImageFiles.length === 0) return;
   const fname = myImageFiles[myCurrentIdx].name;
   document.getElementById('myConfirmMsg').innerHTML =
-    `Delete <b style="color:var(--accent2)">${fname}</b> from disk?<br><br>` +
-    `<span style="color:var(--muted);font-size:10px;">This removes the file and its annotations.<br>This cannot be undone.</span>`;
+    `Delete <b>${fname}</b> from disk?<br><br>This removes the file and its annotations. This cannot be undone.`;
   document.getElementById('myConfirmModal').classList.add('myShow');
 }
 
@@ -869,15 +551,15 @@ async function myConfirmDelete() {
   myCloseConfirm();
   if (myCurrentIdx < 0 || myImageFiles.length === 0) return;
 
-  const idx  = myCurrentIdx;
-  const f    = myImageFiles[idx];
+  const idx   = myCurrentIdx;
+  const f     = myImageFiles[idx];
   const fname = f.name;
 
   // Delete the actual file from the folder
   try {
     await myFolderHandle.removeEntry(fname);
   } catch(e) {
-    mySetStatus('Delete error: ' + e.message, true);
+    mySetStatus('Delete error: ' + e.message);
     return;
   }
 
@@ -914,6 +596,82 @@ document.addEventListener('keydown', e => {
 });
 
 // ======================================================
+// JSON TABS — switch between box list and raw editor
+// ======================================================
+let myCurrentTab = 'boxes';
+
+function myShowTab(tab) {
+  myCurrentTab = tab;
+  const myBoxesView = document.getElementById('myJsonDisplay');
+  const myRawView   = document.getElementById('myRawJsonView');
+  const myBtnBoxes  = document.getElementById('myTabBoxes');
+  const myBtnRaw    = document.getElementById('myTabRaw');
+
+  if (tab === 'raw') {
+    myBoxesView.style.display = 'none';
+    myRawView.style.display   = 'flex';
+    myRawView.style.flexDirection = 'column';
+    myBtnBoxes.style.fontWeight = '';
+    myBtnRaw.style.fontWeight   = 'bold';
+    myRefreshRawJson();
+  } else {
+    myRawView.style.display   = 'none';
+    myBoxesView.style.display = 'block';
+    myBtnBoxes.style.fontWeight = 'bold';
+    myBtnRaw.style.fontWeight   = '';
+  }
+}
+
+function myRefreshRawJson() {
+  // Build the same clean output mySaveJson uses
+  const myOut = {};
+  Object.entries(myAnnotations).forEach(([fname, boxes]) => {
+    if (boxes && boxes.length > 0) {
+      myOut[fname] = boxes.map(b => ({
+        x1: parseFloat(b.x1.toFixed(4)),
+        y1: parseFloat(b.y1.toFixed(4)),
+        x2: parseFloat(b.x2.toFixed(4)),
+        y2: parseFloat(b.y2.toFixed(4)),
+      }));
+    }
+  });
+  document.getElementById('myRawJsonText').value = JSON.stringify(myOut, null, 2);
+  document.getElementById('myRawJsonMsg').textContent = '';
+}
+
+function myApplyRawJson() {
+  const myMsgEl = document.getElementById('myRawJsonMsg');
+  let myParsed;
+  try {
+    myParsed = JSON.parse(document.getElementById('myRawJsonText').value);
+  } catch (e) {
+    myMsgEl.textContent = 'JSON error: ' + e.message;
+    return;
+  }
+  // Validate structure — must be object of arrays of {x1,y1,x2,y2}
+  for (const [fname, boxes] of Object.entries(myParsed)) {
+    if (!Array.isArray(boxes)) {
+      myMsgEl.textContent = 'Each key must be an array: ' + fname;
+      return;
+    }
+    for (const b of boxes) {
+      if (typeof b.x1 !== 'number' || typeof b.y1 !== 'number' ||
+          typeof b.x2 !== 'number' || typeof b.y2 !== 'number') {
+        myMsgEl.textContent = 'Box must have x1 y1 x2 y2 numbers';
+        return;
+      }
+    }
+  }
+  myAnnotations = myParsed;
+  myRedraw();
+  myBuildFileList();
+  myRenderJson();
+  myUpdateBoxCount();
+  mySaveJson();
+  myMsgEl.textContent = 'Applied and saved ✓';
+}
+
+// ======================================================
 // SAVE JSON
 // ======================================================
 async function mySaveJson() {
@@ -943,7 +701,7 @@ async function mySaveJson() {
     await writable.close();
     myFlashSaved();
   } catch(e) {
-    mySetStatus('Save error: ' + e.message, true);
+    mySetStatus('Save error: ' + e.message);
   }
 }
 
@@ -953,10 +711,8 @@ function myFlashSaved() {
   setTimeout(() => el.classList.remove('myShow'), 1200);
 }
 
-function mySetStatus(msg, isError) {
-  const el = document.getElementById('myStatus');
-  el.textContent = msg;
-  el.style.color = isError ? '#ff4444' : 'var(--accent2)';
+function mySetStatus(msg) {
+  document.getElementById('myStatus').textContent = msg;
 }
 
 // ======================================================
@@ -971,7 +727,6 @@ window.addEventListener('resize', () => {
 // ======================================================
 if (!('showDirectoryPicker' in window)) {
   document.getElementById('myStatus').textContent = 'ERROR: needs Chrome or Edge desktop';
-  document.getElementById('myStatus').style.color = '#ff4444';
   document.getElementById('myFolderBtn').disabled = true;
 }
 </script>
