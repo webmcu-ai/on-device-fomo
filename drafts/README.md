@@ -5,6 +5,10 @@ Testing centroid object detection
 
 ChangeLOG
 
+## May 12, 2026   fomo-bounding-boxes07.html fixed bounding boxes, on-device-fomo-v019.txt variable detection These seem good so added flash code
+
+
+
 ## May 10, 2026
 v011 is working, not really well but working. I also now have a webpage to make bounding boxes  fomo-bounding-boxes01.html.
 ## May 9th, 2026   
