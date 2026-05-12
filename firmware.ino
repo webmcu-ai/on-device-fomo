@@ -69,12 +69,17 @@ String myClassLabels[NUM_CLASSES] = {"0Blank", "1Cup"};
 const int myTotalItems = NUM_CLASSES + 2;      // NUM_CLASSES + 2 for menu training and inference
 
 float LEARNING_RATE = 0.0003;
-int BATCH_SIZE = 6;
+int BATCH_SIZE = 12;
 int TARGET_EPOCHS = 30;
-int VALIDATION_IMAGES = 3;  // last N images per class held out for validation (0 = disabled)
+int VALIDATION_IMAGES = 5;  // last N images per class held out for validation (0 = disabled)
 
 // Detection threshold: only draw overlay when max cell confidence exceeds this
-const float myFomoThreshold = 0.37f;    // perhaps 0.35f to 0.45f f lower values for more identifications
+const float myFomoThreshold = 0.38f;    // fixed threshold used when myUseDynamicThreshold = false
+
+// Dynamic threshold: set true to use (peakVal * myDynamicThresholdRatio), floored at myDynamicThresholdFloor
+const bool  myUseDynamicThreshold    = true;   // true = adaptive per-frame, false = fixed myFomoThreshold
+const float myDynamicThresholdRatio  = 0.90f;  // fraction of peak cell value to use as threshold
+const float myDynamicThresholdFloor  = 0.38f;  // minimum threshold even when peak is low
 
 const int myThresholdPress = 1100;
 const int myThresholdRelease = 900;
@@ -1585,6 +1590,7 @@ void myActionInfer() {
   float peakVal = 0.0f;
   int peakGridX = 0;
   int peakGridY = 0;
+  float myActiveThreshold = myUseDynamicThreshold ? myDynamicThresholdFloor : myFomoThreshold;
 
   while (true) {
     unsigned long frameStart = millis();
@@ -1637,6 +1643,13 @@ void myActionInfer() {
       peakGridX = peakCell % FOMO_GRID;   // column in FOMO grid
       peakGridY = peakCell / FOMO_GRID;   // row    in FOMO grid
 
+      // Compute active threshold once per frame — shared by OLED and serial cluster loops.
+      // Dynamic mode: 90% of the peak cell value, floored so blank scenes don't fire everything.
+      // Fixed mode: use the constant myFomoThreshold.
+      myActiveThreshold = myUseDynamicThreshold
+        ? max(peakVal * myDynamicThresholdRatio, myDynamicThresholdFloor)
+        : myFomoThreshold;
+
       // Draw OLED every 10 frames (myRgbBuffer still valid here, before fb_return)
       if (frameIndex == 9) {
         u8g2.firstPage();
@@ -1661,7 +1674,7 @@ void myActionInfer() {
           const int myMergeRadius = 6;  // tune: smaller = split more, larger = merge more
 
           for(int cell=0; cell<FOMO_CELLS; cell++) {
-            if(predMap[cell] < myFomoThreshold) continue;
+            if(predMap[cell] < myActiveThreshold) continue;
             int gx = cell % FOMO_GRID;
             int gy = cell / FOMO_GRID;
 
@@ -1728,10 +1741,10 @@ void myActionInfer() {
     Serial.printf("F%d: %lums (%.1fFPS) pred=%s(%.0f%%)",
                   frameIndex+1, frameTimes[frameIndex], fps,
                   myClassLabels[pred].c_str(), myDense_output[pred]*100);
-    Serial.printf(" peak=(%d,%d)@%.2f", peakGridX, peakGridY, peakVal);
+    Serial.printf(" peak=(%d,%d)@%.2f, @%.2f", peakGridX, peakGridY, peakVal,myActiveThreshold);
 
     // All-class confidence summary
-    Serial.print(" | Classes:");
+    Serial.print(" | ");
     for(int i=0; i<NUM_CLASSES; i++) {
       Serial.printf(" %s=%.0f%%", myClassLabels[i].c_str(), myDense_output[i]*100);
     }
@@ -1750,7 +1763,7 @@ void myActionInfer() {
     const int mySerMergeRadius = 6;
 
     for(int cell=0; cell<FOMO_CELLS; cell++) {
-      if(predMap[cell] < myFomoThreshold) continue;
+      if(predMap[cell] < myActiveThreshold) continue;
       int gx = cell % FOMO_GRID;
       int gy = cell / FOMO_GRID;
       int nearest = -1;
