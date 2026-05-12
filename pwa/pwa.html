@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Install App — webmcu-ai</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { padding: 24px; max-width: 520px; margin: 0 auto; }
+        .myCard { border: 1px solid #ccc; padding: 24px; margin-top: 24px; }
+        .myBtn { display: block; width: 100%; padding: 12px; margin-top: 12px;
+                 border: 1px solid #000; background: #fff; cursor: pointer;
+                 text-decoration: none; text-align: center; font-size: 1rem; }
+        ul { margin-top: 10px; padding-left: 18px; }
+        li { margin-top: 4px; }
+    </style>
+</head>
+<body>
+
+<div class="myCard">
+    <h2 id="myTitleEl">webmcu-ai · PWA Install</h2>
+    <p id="myStatusEl" style="margin-top:8px;"></p>
+
+    <hr style="margin:16px 0;">
+
+    <div id="myMainEl" style="display:none;">
+        <b>Desktop PWA — One-Time Payment</b>
+        <p style="margin-top:4px;">$6 USD · no subscription</p>
+        <ul>
+            <li>Install as a standalone desktop app</li>
+            <li>Works offline via service worker cache</li>
+            <li>One payment per repository</li>
+            <li>Supports open-source TinyML education</li>
+            <li>All proceeds support webmcu-ai</li>
+        </ul>
+        <div id="myActionEl"></div>
+    </div>
+
+    <div id="myErrorEl" style="display:none;">
+        <b>Error</b>
+        <p id="myErrorMsgEl" style="margin-top:8px;"></p>
+    </div>
+</div>
+
+<p style="margin-top:16px; font-size:0.9rem;">
+    <a href="https://github.com/webmcu-ai" target="_blank">github.com/webmcu-ai</a>
+    &nbsp;·&nbsp; MIT Licensed &nbsp;·&nbsp; BC, Canada<br>
+    Payment processed securely by Stripe
+</p>
+
+<script>
+// ─── Config — edit these two lines ───────────────────────────────────────────
+
+const myStripeLink = "https://buy.stripe.com/test_fZuaEZ8eKb7ybFq2c5aVa00";
+const mySalt       = "webmcu_pwa_2026";
+
+// ─── Derive repo name from this page's URL ────────────────────────────────────
+// Works for:  https://webmcu-ai.github.io/torchjs/pwa/index.html  → "torchjs"
+// Also works: http://localhost/torchjs/pwa/index.html             → "torchjs"
+
+const myRepoName = (function() {
+    const myParts = window.location.pathname.split('/').filter(Boolean);
+    // pathname segments: ["torchjs","pwa","index.html"] — first segment is repo
+    return myParts[0] || "unknown";
+})();
+
+// Root of this repo's GitHub Pages deployment (parent of /pwa/)
+const myRepoRoot = (function() {
+    const myOrigin = window.location.origin;
+    return `${myOrigin}/${myRepoName}/`;
+})();
+
+// ─── Token helpers ─────────────────────────────────────────────────────────────
+
+function myTokenKey() {
+    return `_pwa_paid_${myRepoName}`;
+}
+
+function myMakeToken() {
+    const myDate = new Date().toISOString().split('T')[0];
+    return btoa(`${myRepoName}_${myDate}_${mySalt}`);
+}
+
+function myIsPaid() {
+    try {
+        const myVal = localStorage.getItem(myTokenKey());
+        if (!myVal) return false;
+        return atob(myVal).includes(`_${mySalt}`);
+    } catch(e) { return false; }
+}
+
+function myStorePaidToken() {
+    localStorage.setItem(myTokenKey(), myMakeToken());
+}
+
+// ─── UI ────────────────────────────────────────────────────────────────────────
+
+function mySetStatus(msg) {
+    document.getElementById('myStatusEl').textContent = msg;
+}
+
+function myShowError(msg) {
+    document.getElementById('myMainEl').style.display = 'none';
+    document.getElementById('myErrorEl').style.display = 'block';
+    document.getElementById('myErrorMsgEl').innerHTML = msg;
+}
+
+function myShowMain() {
+    document.getElementById('myMainEl').style.display = 'block';
+    document.getElementById('myTitleEl').textContent = `Install: ${myRepoName}`;
+}
+
+function myBuildPaidUI() {
+    const myToken = myMakeToken();
+    const myReturnUrl = `${myRepoRoot}?pwa_token=${encodeURIComponent(myToken)}`;
+    document.getElementById('myActionEl').innerHTML = `
+        <p style="margin-top:12px;">✓ Payment verified for <b>${myRepoName}</b></p>
+        <a href="${myReturnUrl}" class="myBtn">→ Return &amp; Install App</a>
+    `;
+}
+
+function myBuildUnpaidUI() {
+    // Stripe Payment Links accept ?client_reference_id= to inject into success_url
+    // Your Stripe success URL should be:
+    //   https://webmcu-ai.github.io/{repoName}/pwa/?paid=1
+    // (Stripe injects client_reference_id as the repo name stored in the token)
+    const myStripeUrl = `${myStripeLink}?client_reference_id=${encodeURIComponent(myRepoName)}`;
+    document.getElementById('myActionEl').innerHTML = `
+        <a href="${myStripeUrl}" class="myBtn">Pay $6 USD via Stripe →</a>
+        <a href="${myRepoRoot}" class="myBtn">← Back to ${myRepoName}</a>
+    `;
+}
+
+// ─── Handle Stripe return (?paid=1) ───────────────────────────────────────────
+// Stripe success URL for this repo should be set to:
+//   https://webmcu-ai.github.io/REPONAME/pwa/?paid=1
+// (No {client_reference_id} substitution needed in the URL — the pwa/index.html
+//  already knows its own repo name from the URL path.)
+
+function myHandleStripeReturn() {
+    myStorePaidToken();
+    // Clean ?paid=1 from the URL
+    window.history.replaceState({}, document.title, window.location.pathname);
+    mySetStatus('✓ Payment confirmed! Click below to return and install.');
+    myShowMain();
+    myBuildPaidUI();
+
+    // Auto-redirect after 2 s for convenience
+    const myToken  = myMakeToken();
+    const myReturnUrl = `${myRepoRoot}?pwa_token=${encodeURIComponent(myToken)}`;
+    setTimeout(() => { window.location.href = myReturnUrl; }, 2000);
+}
+
+// ─── Main init ─────────────────────────────────────────────────────────────────
+
+function myInit() {
+    const myParams = new URLSearchParams(window.location.search);
+
+    // Case 1: Stripe returned with ?paid=1
+    if (myParams.get('paid') === '1') {
+        myHandleStripeReturn();
+        return;
+    }
+
+    // Case 2: Already paid previously
+    myShowMain();
+    if (myIsPaid()) {
+        mySetStatus('You have already paid — ready to install.');
+        myBuildPaidUI();
+        return;
+    }
+
+    // Case 3: Normal entry — show payment UI
+    myBuildUnpaidUI();
+}
+
+myInit();
+</script>
+</body>
+</html>
