@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FOMO Annotator</title>
+<style>
+  /* Essential layout only */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  #myMain { display: flex; flex: 1; overflow: hidden; }
+
+  #myFileList { width: 180px; flex-shrink: 0; overflow-y: auto; border-right: 1px solid #ccc; display: flex; flex-direction: column; }
+  .myFileItem { padding: 4px 8px; cursor: pointer; border-bottom: 1px solid #eee; }
+  .myFileItem.myActive { font-weight: bold; }
+  .myFileName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  #myCanvasArea { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  #myToolbar { padding: 4px 8px; display: flex; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; border-bottom: 1px solid #ccc; }
+
+  #myCanvasWrap { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; background: #888; }
+  #myCanvas { cursor: crosshair; display: block; image-rendering: pixelated; }
+
+  #myJsonPanel { width: 260px; flex-shrink: 0; border-left: 1px solid #ccc; display: flex; flex-direction: column; overflow: hidden; }
+  #myJsonHeader { padding: 4px 8px; border-bottom: 1px solid #ccc; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  #myJsonDisplay { flex: 1; overflow-y: auto; padding: 8px; }
+
+  /* Modal overlay — needs position:fixed and display toggle */
+  #myConfirmModal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; }
+  #myConfirmModal.myShow { display: flex; }
+  #myConfirmBox { background: #fff; padding: 20px; max-width: 300px; text-align: center; }
+  #myConfirmBox p { margin-bottom: 12px; }
+
+  /* Save flash — needs position:fixed and opacity toggle */
+  #mySaveFlash { position: fixed; top: 8px; right: 8px; padding: 4px 10px; background: #090; color: #fff; opacity: 0; pointer-events: none; }
+  #mySaveFlash.myShow { opacity: 1; }
+
+  #myBgBanner { display: none; padding: 4px 10px; background: #ffe8a0; border-bottom: 1px solid #c80; }
+
+  #myEmptyState { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; color: #fff; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="myHeader" style="padding: 4px 10px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #ccc; flex-shrink: 0;">
+  <strong>FOMO Annotator</strong>
+  <button id="myFolderBtn" onclick="myOpenFolder()">Open Folder</button>
+  <span id="myFolderName">No folder selected</span>
+  <span id="myStatus" style="margin-left: auto;"></span>
+</div>
+
+<!-- BACKGROUND FOLDER BANNER -->
+<div id="myBgBanner">
+  Folder starts with "0" — this is a background class. No bounding boxes needed, just collect images here.
+</div>
+
+<!-- CONFIRM MODAL -->
+<div id="myConfirmModal">
+  <div id="myConfirmBox">
+    <p id="myConfirmMsg">Delete this image?</p>
+    <button id="myConfirmYes" onclick="myConfirmDelete()">DELETE</button>
+    <button id="myConfirmNo" onclick="myCloseConfirm()">CANCEL</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="myMain">
+
+  <!-- When making your own version these pages are not needed. Started here -->
+  <button id="myAppBtn" onclick="myHandleAppAction()"
+    style="display:none; position:fixed; top:15px; right:15px; z-index:9999; cursor:pointer;">
+  </button>
+  <link rel="manifest" href="pwa/manifest.json">
+  <script src="https://webmcu-ai.github.io/pwa/pwa.js"></script>
+  <!-- When making your own version these pages are not needed. Ended here -->
+
+  <!-- FILE LIST -->
+  <div id="myFileList">
+    <div style="padding: 4px 8px; border-bottom: 1px solid #ccc; font-size: 11px;">Images</div>
+    <div id="myFileItems"></div>
+  </div>
+
+  <!-- CANVAS -->
+  <div id="myCanvasArea">
+    <div id="myToolbar">
+      <span id="myImgName">—</span>
+      <span id="myBoxCount"></span>
+      <div style="margin-left: auto; display: flex; gap: 4px;">
+        <button onclick="myUndoLast()">Undo</button>
+        <button onclick="myClearBoxes()">Clear All</button>
+        <button onclick="myAskDeleteImage()" title="Delete this image from disk and remove from JSON">Delete Img</button>
+        <button onclick="myNavFile(-1)">◀ Prev</button>
+        <button onclick="myNavFile(1)">Next ▶</button>
+      </div>
+    </div>
+    <div id="myCanvasWrap">
+      <div id="myEmptyState">
+        <p>Open a class folder to begin</p>
+        <p>Drag to draw bounding boxes</p>
+      </div>
+      <canvas id="myCanvas"></canvas>
+    </div>
+  </div>
+
+  <!-- JSON PANEL -->
+  <div id="myJsonPanel">
+    <div id="myJsonHeader">
+      <span>annotations.json</span>
+      <div style="display: flex; gap: 4px; align-items: center;">
+        <button id="myTabBoxes" onclick="myShowTab('boxes')"><u>Boxes</u></button>
+        <button id="myTabRaw"   onclick="myShowTab('raw')">Raw JSON</button>
+        <button onclick="mySaveJson()">Save</button>
+      </div>
+    </div>
+
+    <!-- Boxes view (default) -->
+    <div id="myJsonDisplay">
+      <div id="myEmptyMsg" style="padding: 10px; font-size: 11px;">
+        Open a folder and draw boxes to begin.<br><br>
+        JSON saves automatically to the class folder as <b>annotations.json</b>
+      </div>
+    </div>
+
+    <!-- Raw JSON editor view -->
+    <div id="myRawJsonView" style="display: none; flex: 1; flex-direction: column; padding: 6px; gap: 4px;">
+      <textarea id="myRawJsonText" spellcheck="false"
+        style="flex: 1; width: 100%; height: 100%; font-family: monospace; font-size: 11px; resize: none;"></textarea>
+      <button onclick="myApplyRawJson()" style="width: 100%;">Apply Edits</button>
+      <div id="myRawJsonMsg" style="font-size: 11px; min-height: 14px;"></div>
+    </div>
+  </div>
+</div>
+
+<div id="mySaveFlash">SAVED</div>
+
+<script>
+// ======================================================
+// FOMO ANNOTATOR — single-file HTML
+// Jeremy Ellis / webmcu-ai
+// Uses File System Access API (Chrome/Edge desktop)
+// Saves annotations.json to the opened class folder
+// ======================================================
+
+// -- State --
+let myFolderHandle = null;
+let myImageFiles   = [];       // array of {name, handle}
+let myCurrentIdx   = -1;
+let myAnnotations  = {};       // { filename: [{x1,y1,x2,y2}, ...] }
+let myJsonHandle   = null;
+
+// Canvas drawing state
+let myCanvas   = document.getElementById('myCanvas');
+let myCtx      = myCanvas.getContext('2d');
+let myImg      = null;
+let myDrawing  = false;
+let myStartX   = 0;
+let myStartY   = 0;
+let myCurrentBox = null;  // box being drawn right now
+
+// Canvas display scale (image may be scaled to fit the panel)
+let myScale = 1;
+let myOffX  = 0;
+let myOffY  = 0;
+
+// ======================================================
+// FOLDER OPEN
+// ======================================================
+async function myOpenFolder() {
+  try {
+    myFolderHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+  } catch(e) {
+    if (e.name !== 'AbortError') mySetStatus('Error: ' + e.message);
+    return;
+  }
+
+  document.getElementById('myFolderName').textContent = myFolderHandle.name;
+  document.getElementById('myEmptyState').style.display = 'none';
+
+  myImageFiles = [];
+  myAnnotations = {};
+  myJsonHandle = null;
+
+  // Scan folder for images and existing annotations.json
+  for await (const [name, handle] of myFolderHandle.entries()) {
+    if (handle.kind === 'file') {
+      const lower = name.toLowerCase();
+      if (lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png') || lower.endsWith('.bmp')) {
+        myImageFiles.push({ name, handle });
+      }
+      if (name === 'annotations.json') {
+        myJsonHandle = handle;
+      }
+    }
+  }
+
+  // Sort alphabetically
+  myImageFiles.sort((a, b) => a.name.localeCompare(b.name));
+
+  // Load existing annotations
+  if (myJsonHandle) {
+    try {
+      const file = await myJsonHandle.getFile();
+      const text = await file.text();
+      myAnnotations = JSON.parse(text);
+    } catch(e) {
+      myAnnotations = {};
+    }
+  }
+
+  myBuildFileList();
+  mySetStatus(myImageFiles.length + ' images found');
+
+  // Show banner if folder name starts with "0" (background class)
+  document.getElementById('myBgBanner').style.display = myFolderHandle.name.startsWith('0') ? 'block' : 'none';
+
+  if (myImageFiles.length > 0) myLoadImage(0);
+}
+
+// ======================================================
+// FILE LIST
+// ======================================================
+function myBuildFileList() {
+  const container = document.getElementById('myFileItems');
+  container.innerHTML = '';
+  myImageFiles.forEach((f, idx) => {
+    const hasBoxes = myAnnotations[f.name] && myAnnotations[f.name].length > 0;
+    const div = document.createElement('div');
+    div.className = 'myFileItem' + (idx === myCurrentIdx ? ' myActive' : '');
+    div.id = 'myFile_' + idx;
+    div.onclick = () => myLoadImage(idx);
+    div.title = f.name;
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'myFileName';
+    nameSpan.textContent = (hasBoxes ? '✓ ' : '  ') + f.name;
+
+    div.appendChild(nameSpan);
+    container.appendChild(div);
+  });
+}
+
+function myUpdateFileItem(idx) {
+  const el = document.getElementById('myFile_' + idx);
+  if (!el) return;
+  const f = myImageFiles[idx];
+  const hasBoxes = myAnnotations[f.name] && myAnnotations[f.name].length > 0;
+  const isActive = idx === myCurrentIdx;
+  el.className = 'myFileItem' + (isActive ? ' myActive' : '');
+  el.querySelector('.myFileName').textContent = (hasBoxes ? '✓ ' : '  ') + f.name;
+}
+
+// ======================================================
+// LOAD IMAGE
+// ======================================================
+async function myLoadImage(idx) {
+  if (idx < 0 || idx >= myImageFiles.length) return;
+
+  // Deactivate previous
+  if (myCurrentIdx >= 0) myUpdateFileItem(myCurrentIdx);
+
+  myCurrentIdx = idx;
+  const f = myImageFiles[idx];
+
+  document.getElementById('myImgName').textContent = f.name;
+
+  // Load image blob -> object URL -> draw
+  const file = await f.handle.getFile();
+  const url  = URL.createObjectURL(file);
+
+  myImg = new Image();
+  myImg.onload = () => {
+    myFitCanvas();
+    myRedraw();
+    URL.revokeObjectURL(url);
+  };
+  myImg.src = url;
+
+  myUpdateFileItem(idx);
+  myScrollFileIntoView(idx);
+  myRenderJson();
+  myUpdateBoxCount();
+}
+
+function myFitCanvas() {
+  const wrap = document.getElementById('myCanvasWrap');
+  const ww = wrap.clientWidth  - 20;
+  const wh = wrap.clientHeight - 20;
+  const iw = myImg.naturalWidth;
+  const ih = myImg.naturalHeight;
+
+  myScale = Math.min(ww / iw, wh / ih, 1);  // never upscale past 1:1
+  // If image is tiny (e.g. 64x64 training images), allow upscaling to fill space
+  if (iw <= 128 && ih <= 128) {
+    myScale = Math.min(Math.floor(ww / iw), Math.floor(wh / ih), 8);
+  }
+
+  myCanvas.width  = Math.round(iw * myScale);
+  myCanvas.height = Math.round(ih * myScale);
+  myOffX = 0;
+  myOffY = 0;
+}
+
+// ======================================================
+// DRAWING
+// ======================================================
+myCanvas.addEventListener('mousedown', e => {
+  if (!myImg) return;
+  myDrawing = true;
+  const r = myCanvas.getBoundingClientRect();
+  myStartX = e.clientX - r.left;
+  myStartY = e.clientY - r.top;
+  myCurrentBox = null;
+});
+
+myCanvas.addEventListener('mousemove', e => {
+  if (!myDrawing || !myImg) return;
+  const r = myCanvas.getBoundingClientRect();
+  const cx = e.clientX - r.left;
+  const cy = e.clientY - r.top;
+  myCurrentBox = myNormaliseBox(myStartX, myStartY, cx, cy);
+  myRedraw();
+});
+
+myCanvas.addEventListener('mouseup', e => {
+  if (!myDrawing || !myImg) return;
+  myDrawing = false;
+  if (!myCurrentBox) return;
+
+  // Reject tiny accidental clicks (< 2% of image in either dimension)
+  if ((myCurrentBox.x2 - myCurrentBox.x1) < 0.02 || (myCurrentBox.y2 - myCurrentBox.y1) < 0.02) {
+    myCurrentBox = null;
+    myRedraw();
+    return;
+  }
+
+  const fname = myImageFiles[myCurrentIdx].name;
+  if (!myAnnotations[fname]) myAnnotations[fname] = [];
+  myAnnotations[fname].push({ ...myCurrentBox });
+  myCurrentBox = null;
+
+  myRedraw();
+  myRenderJson();
+  myUpdateBoxCount();
+  myUpdateFileItem(myCurrentIdx);
+  mySaveJson();  // auto-save on every new box
+});
+
+myCanvas.addEventListener('mouseleave', () => {
+  if (myDrawing) {
+    myDrawing = false;
+    myCurrentBox = null;
+    myRedraw();
+  }
+});
+
+// Touch support for tablets
+myCanvas.addEventListener('touchstart', e => { e.preventDefault(); myCanvas.dispatchEvent(new MouseEvent('mousedown', myTouchToMouse(e))); }, { passive: false });
+myCanvas.addEventListener('touchmove',  e => { e.preventDefault(); myCanvas.dispatchEvent(new MouseEvent('mousemove',  myTouchToMouse(e))); }, { passive: false });
+myCanvas.addEventListener('touchend',   e => { e.preventDefault(); myCanvas.dispatchEvent(new MouseEvent('mouseup',   myTouchToMouse(e))); }, { passive: false });
+function myTouchToMouse(e) {
+  const t = e.touches[0] || e.changedTouches[0];
+  return { clientX: t.clientX, clientY: t.clientY, bubbles: true };
+}
+
+// Convert canvas pixel coords -> normalised image fractions
+function myNormaliseBox(ax, ay, bx, by) {
+  const w = myCanvas.width;
+  const h = myCanvas.height;
+  return {
+    x1: Math.max(0, Math.min(ax, bx) / w),
+    y1: Math.max(0, Math.min(ay, by) / h),
+    x2: Math.min(1, Math.max(ax, bx) / w),
+    y2: Math.min(1, Math.max(ay, by) / h),
+  };
+}
+
+// ======================================================
+// REDRAW
+// ======================================================
+function myRedraw() {
+  if (!myImg) return;
+  const w = myCanvas.width;
+  const h = myCanvas.height;
+  myCtx.clearRect(0, 0, w, h);
+  myCtx.drawImage(myImg, 0, 0, w, h);
+
+  const fname = myImageFiles[myCurrentIdx]?.name;
+  const boxes = (fname && myAnnotations[fname]) || [];
+
+  // Saved boxes
+  boxes.forEach((b, i) => {
+    myDrawBox(b, `hsl(${(i * 67) % 360}, 90%, 60%)`, i + 1);
+  });
+
+  // Box currently being drawn
+  if (myCurrentBox) {
+    myDrawBox(myCurrentBox, '#00e5ff', '?');
+  }
+}
+
+function myDrawBox(b, color, label) {
+  const w = myCanvas.width;
+  const h = myCanvas.height;
+  const px = b.x1 * w;
+  const py = b.y1 * h;
+  const pw = (b.x2 - b.x1) * w;
+  const ph = (b.y2 - b.y1) * h;
+
+  // Shadow for visibility on any background
+  myCtx.strokeStyle = 'rgba(0,0,0,0.6)';
+  myCtx.lineWidth = 3;
+  myCtx.strokeRect(px, py, pw, ph);
+
+  myCtx.strokeStyle = color;
+  myCtx.lineWidth = 2;
+  myCtx.strokeRect(px, py, pw, ph);
+
+  // Label badge
+  myCtx.fillStyle = color;
+  myCtx.fillRect(px, py - 16, 20, 16);
+  myCtx.fillStyle = '#000';
+  myCtx.font = 'bold 11px monospace';
+  myCtx.fillText(label, px + 3, py - 4);
+}
+
+// ======================================================
+// CONTROLS
+// ======================================================
+function myUndoLast() {
+  if (myCurrentIdx < 0) return;
+  const fname = myImageFiles[myCurrentIdx].name;
+  if (myAnnotations[fname] && myAnnotations[fname].length > 0) {
+    myAnnotations[fname].pop();
+    myRedraw();
+    myRenderJson();
+    myUpdateBoxCount();
+    myUpdateFileItem(myCurrentIdx);
+    mySaveJson();
+  }
+}
+
+function myClearBoxes() {
+  if (myCurrentIdx < 0) return;
+  const fname = myImageFiles[myCurrentIdx].name;
+  myAnnotations[fname] = [];
+  myRedraw();
+  myRenderJson();
+  myUpdateBoxCount();
+  myUpdateFileItem(myCurrentIdx);
+  mySaveJson();
+}
+
+function myNavFile(dir) {
+  myLoadImage(myCurrentIdx + dir);
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'ArrowRight' || e.key === 'd') myNavFile(1);
+  if (e.key === 'ArrowLeft'  || e.key === 'a') myNavFile(-1);
+  if (e.key === 'z' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); myUndoLast(); }
+  if (e.key === 'Delete') myClearBoxes();
+});
+
+function myScrollFileIntoView(idx) {
+  const el = document.getElementById('myFile_' + idx);
+  if (el) el.scrollIntoView({ block: 'nearest' });
+}
+
+function myUpdateBoxCount() {
+  const fname = myImageFiles[myCurrentIdx]?.name;
+  const count = (fname && myAnnotations[fname]?.length) || 0;
+  document.getElementById('myBoxCount').textContent = count > 0 ? `[${count} box${count > 1 ? 'es' : ''}]` : '[no boxes]';
+}
+
+// ======================================================
+// JSON PANEL RENDER
+// ======================================================
+function myRenderJson() {
+  const panel = document.getElementById('myJsonDisplay');
+  const entries = Object.entries(myAnnotations).filter(([, boxes]) => boxes && boxes.length > 0);
+
+  if (entries.length === 0) {
+    panel.innerHTML = '<div id="myEmptyMsg" style="padding:10px; font-size:11px;">Draw boxes on images.<br><br>JSON auto-saves to <b>annotations.json</b> in the class folder.</div>';
+  } else {
+    panel.innerHTML = '';
+    entries.forEach(([fname, boxes]) => {
+      const isActive = myImageFiles[myCurrentIdx]?.name === fname;
+      const div = document.createElement('div');
+      div.style.marginBottom = '10px';
+      if (isActive) div.style.fontWeight = 'bold';
+
+      const header = document.createElement('div');
+      header.style.cursor = 'pointer';
+      header.innerHTML = `${fname} (${boxes.length} box${boxes.length > 1 ? 'es' : ''})`;
+      header.onclick = () => {
+        const idx = myImageFiles.findIndex(f => f.name === fname);
+        if (idx >= 0) myLoadImage(idx);
+      };
+
+      const body = document.createElement('div');
+      body.style.paddingLeft = '8px';
+      body.style.fontSize = '11px';
+      boxes.forEach((b, i) => {
+        const row = document.createElement('div');
+        row.innerHTML =
+          `#${i+1} x1:${b.x1.toFixed(3)} y1:${b.y1.toFixed(3)} x2:${b.x2.toFixed(3)} y2:${b.y2.toFixed(3)} ` +
+          `<button onclick="myDeleteBox('${fname}',${i})">✕</button>`;
+        body.appendChild(row);
+      });
+
+      div.appendChild(header);
+      div.appendChild(body);
+      panel.appendChild(div);
+    });
+  }
+
+  // Keep raw view in sync if it is currently showing
+  if (myCurrentTab === 'raw') myRefreshRawJson();
+}
+
+function myDeleteBox(fname, idx) {
+  if (!myAnnotations[fname]) return;
+  myAnnotations[fname].splice(idx, 1);
+  myRedraw();
+  myRenderJson();
+  myUpdateBoxCount();
+  myUpdateFileItem(myImageFiles.findIndex(f => f.name === fname));
+  mySaveJson();
+}
+
+// ======================================================
+// DELETE IMAGE
+// ======================================================
+function myAskDeleteImage() {
+  if (myCurrentIdx < 0 || myImageFiles.length === 0) return;
+  const fname = myImageFiles[myCurrentIdx].name;
+  document.getElementById('myConfirmMsg').innerHTML =
+    `Delete <b>${fname}</b> from disk?<br><br>This removes the file and its annotations. This cannot be undone.`;
+  document.getElementById('myConfirmModal').classList.add('myShow');
+}
+
+function myCloseConfirm() {
+  document.getElementById('myConfirmModal').classList.remove('myShow');
+}
+
+async function myConfirmDelete() {
+  myCloseConfirm();
+  if (myCurrentIdx < 0 || myImageFiles.length === 0) return;
+
+  const idx   = myCurrentIdx;
+  const f     = myImageFiles[idx];
+  const fname = f.name;
+
+  // Delete the actual file from the folder
+  try {
+    await myFolderHandle.removeEntry(fname);
+  } catch(e) {
+    mySetStatus('Delete error: ' + e.message);
+    return;
+  }
+
+  // Remove from annotations and image list
+  delete myAnnotations[fname];
+  myImageFiles.splice(idx, 1);
+
+  // Save JSON immediately (reflects the removal)
+  await mySaveJson();
+
+  // Rebuild file list
+  myBuildFileList();
+  mySetStatus(myImageFiles.length + ' images');
+
+  // Navigate to next available image
+  if (myImageFiles.length === 0) {
+    myCurrentIdx = -1;
+    myImg = null;
+    myCtx.clearRect(0, 0, myCanvas.width, myCanvas.height);
+    document.getElementById('myImgName').textContent = '—';
+    document.getElementById('myBoxCount').textContent = '';
+    myRenderJson();
+    document.getElementById('myEmptyState').style.display = 'flex';
+  } else {
+    const nextIdx = Math.min(idx, myImageFiles.length - 1);
+    myCurrentIdx = -1;  // reset so loadImage re-activates
+    myLoadImage(nextIdx);
+  }
+}
+
+// Keyboard: Escape closes modal
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') myCloseConfirm();
+});
+
+// ======================================================
+// JSON TABS — switch between box list and raw editor
+// ======================================================
+let myCurrentTab = 'boxes';
+
+function myShowTab(tab) {
+  myCurrentTab = tab;
+  const myBoxesView = document.getElementById('myJsonDisplay');
+  const myRawView   = document.getElementById('myRawJsonView');
+  const myBtnBoxes  = document.getElementById('myTabBoxes');
+  const myBtnRaw    = document.getElementById('myTabRaw');
+
+  if (tab === 'raw') {
+    myBoxesView.style.display = 'none';
+    myRawView.style.display   = 'flex';
+    myRawView.style.flexDirection = 'column';
+    myBtnBoxes.style.fontWeight = '';
+    myBtnRaw.style.fontWeight   = 'bold';
+    myRefreshRawJson();
+  } else {
+    myRawView.style.display   = 'none';
+    myBoxesView.style.display = 'block';
+    myBtnBoxes.style.fontWeight = 'bold';
+    myBtnRaw.style.fontWeight   = '';
+  }
+}
+
+function myRefreshRawJson() {
+  // Build the same clean output mySaveJson uses
+  const myOut = {};
+  Object.entries(myAnnotations).forEach(([fname, boxes]) => {
+    if (boxes && boxes.length > 0) {
+      myOut[fname] = boxes.map(b => ({
+        x1: parseFloat(b.x1.toFixed(4)),
+        y1: parseFloat(b.y1.toFixed(4)),
+        x2: parseFloat(b.x2.toFixed(4)),
+        y2: parseFloat(b.y2.toFixed(4)),
+      }));
+    }
+  });
+  document.getElementById('myRawJsonText').value = JSON.stringify(myOut, null, 2);
+  document.getElementById('myRawJsonMsg').textContent = '';
+}
+
+function myApplyRawJson() {
+  const myMsgEl = document.getElementById('myRawJsonMsg');
+  let myParsed;
+  try {
+    myParsed = JSON.parse(document.getElementById('myRawJsonText').value);
+  } catch (e) {
+    myMsgEl.textContent = 'JSON error: ' + e.message;
+    return;
+  }
+  // Validate structure — must be object of arrays of {x1,y1,x2,y2}
+  for (const [fname, boxes] of Object.entries(myParsed)) {
+    if (!Array.isArray(boxes)) {
+      myMsgEl.textContent = 'Each key must be an array: ' + fname;
+      return;
+    }
+    for (const b of boxes) {
+      if (typeof b.x1 !== 'number' || typeof b.y1 !== 'number' ||
+          typeof b.x2 !== 'number' || typeof b.y2 !== 'number') {
+        myMsgEl.textContent = 'Box must have x1 y1 x2 y2 numbers';
+        return;
+      }
+    }
+  }
+  myAnnotations = myParsed;
+  myRedraw();
+  myBuildFileList();
+  myRenderJson();
+  myUpdateBoxCount();
+  mySaveJson();
+  myMsgEl.textContent = 'Applied and saved ✓';
+}
+
+// ======================================================
+// SAVE JSON
+// ======================================================
+async function mySaveJson() {
+  if (!myFolderHandle) return;
+
+  // Build clean output — only files that have boxes
+  const out = {};
+  Object.entries(myAnnotations).forEach(([fname, boxes]) => {
+    if (boxes && boxes.length > 0) {
+      out[fname] = boxes.map(b => ({
+        x1: parseFloat(b.x1.toFixed(4)),
+        y1: parseFloat(b.y1.toFixed(4)),
+        x2: parseFloat(b.x2.toFixed(4)),
+        y2: parseFloat(b.y2.toFixed(4)),
+      }));
+    }
+  });
+
+  const json = JSON.stringify(out, null, 2);
+
+  try {
+    if (!myJsonHandle) {
+      myJsonHandle = await myFolderHandle.getFileHandle('annotations.json', { create: true });
+    }
+    const writable = await myJsonHandle.createWritable();
+    await writable.write(json);
+    await writable.close();
+    myFlashSaved();
+  } catch(e) {
+    mySetStatus('Save error: ' + e.message);
+  }
+}
+
+function myFlashSaved() {
+  const el = document.getElementById('mySaveFlash');
+  el.classList.add('myShow');
+  setTimeout(() => el.classList.remove('myShow'), 1200);
+}
+
+function mySetStatus(msg) {
+  document.getElementById('myStatus').textContent = msg;
+}
+
+// ======================================================
+// RESIZE HANDLER
+// ======================================================
+window.addEventListener('resize', () => {
+  if (myImg) { myFitCanvas(); myRedraw(); }
+});
+
+// ======================================================
+// STARTUP CHECK
+// ======================================================
+if (!('showDirectoryPicker' in window)) {
+  document.getElementById('myStatus').textContent = 'ERROR: needs Chrome or Edge desktop';
+  document.getElementById('myFolderBtn').disabled = true;
+}
+</script>
+</body>
+</html>
