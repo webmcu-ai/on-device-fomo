@@ -111,11 +111,9 @@ function myShowMain() {
 }
 
 function myBuildPaidUI() {
-    const myToken = myMakeToken();
-    const myReturnUrl = `${myRepoRoot}?pwa_token=${encodeURIComponent(myToken)}`;
     document.getElementById('myActionEl').innerHTML = `
         <p style="margin-top:12px;">✓ Payment verified for <b>${myRepoName}</b></p>
-        <a href="${myReturnUrl}" class="myBtn">→ Return &amp; Install App</a>
+        <a href="${myRepoRoot}" class="myBtn">→ Return &amp; Install App</a>
     `;
 }
 
@@ -145,10 +143,8 @@ function myHandleStripeReturn() {
     myShowMain();
     myBuildPaidUI();
 
-    // Auto-redirect after 2 s for convenience
-    const myToken  = myMakeToken();
-    const myReturnUrl = `${myRepoRoot}?pwa_token=${encodeURIComponent(myToken)}`;
-    setTimeout(() => { window.location.href = myReturnUrl; }, 2000);
+    // Auto-redirect after 2 s — token already stored in localStorage
+    setTimeout(() => { window.location.href = myRepoRoot; }, 2000);
 }
 
 // ─── Main init ─────────────────────────────────────────────────────────────────
