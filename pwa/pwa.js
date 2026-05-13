@@ -37,22 +37,9 @@ function myPwaIsPaid() {
     } catch(e) { return false; }
 }
 
-function myPwaStoreToken(token) {
-    // token arrives from pwa/index.html via ?pwa_token= param
-    localStorage.setItem(myPwaTokenKey(), token);
-}
-
-// ─── Handle return from pwa/index.html (?pwa_token=...) ──────────────────────
-
-function myPwaHandleReturn() {
-    const myParams = new URLSearchParams(window.location.search);
-    const myToken  = myParams.get('pwa_token');
-    if (!myToken) return false;
-    myPwaStoreToken(myToken);
-    // Remove token from URL bar without reload
-    window.history.replaceState({}, document.title, window.location.pathname);
-    return true;
-}
+// No URL token handling needed — pwa/index.html writes directly to localStorage
+// (same origin: webmcu-ai.github.io), so the token is already present when
+// index.html loads after the redirect.
 
 // ─── Button state ──────────────────────────────────────────────────────────────
 
@@ -81,7 +68,7 @@ function myPwaUpdateBtn() {
 async function myHandleAppAction() {
     if (!myPwaIsPaid()) {
         // Send user to pwa/index.html, which knows how to return here
-        window.location.href = './pwa/pwa.html';
+        window.location.href = 'pwa/';
         return;
     }
 
@@ -121,12 +108,6 @@ window.addEventListener('appinstalled', () => {
 });
 
 window.addEventListener('load', () => {
-    const myJustPaid = myPwaHandleReturn();
     myPwaRegisterSW();
     myPwaUpdateBtn();
-
-    if (myJustPaid) {
-        // Small delay so SW can register before install prompt fires
-        setTimeout(myPwaUpdateBtn, 600);
-    }
 });
