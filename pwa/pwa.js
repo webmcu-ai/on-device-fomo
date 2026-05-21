@@ -1,62 +1,67 @@
 // pwa/pwa.js
 
-// Global variable to store the installation event
-let mySavedBeforeInstallPromptEvent = null;
+let mySavedInstallPromptEvent = null;
 
 // Register the service worker using async/await
-async function myRegisterServiceWorkerFunction() {
+async function myRegisterServiceWorker() {
   if ("serviceWorker" in navigator) {
     try {
-      const myRegistrationDetails = await navigator.serviceWorker.register("sw.js");
-      console.log("Service Worker registered successfully:", myRegistrationDetails);
-    } catch (myRegistrationError) {
-      console.error("Service Worker registration failed:", myRegistrationError);
+      // sw.js is in the root directory, relative to index.html
+      const myRegistration = await navigator.serviceWorker.register("./sw.js");
+      console.log("Service Worker registered successfully with scope:", myRegistration.scope);
+    } catch (myError) {
+      console.error("Service Worker registration failed:", myError);
     }
   }
 }
 
-// Listen for the browser's native install prompt challenge
-window.addEventListener("beforeinstallprompt", (myEventDetails) => {
-  // Prevent the older default browser install banner from showing automatically
-  myEventDetails.preventDefault();
+// Listen for the native browser install availability prompt
+window.addEventListener("beforeinstallprompt", (myEvent) => {
+  // Prevent older platforms from automatically showing the prompt
+  myEvent.preventDefault();
   
-  // Save the event so we can trigger it later
-  mySavedBeforeInstallPromptEvent = myEventDetails;
+  // Stash the event so it can be triggered later
+  mySavedInstallPromptEvent = myEvent;
   
-  // Reveal your custom install button
-  const myInstallButtonElement = document.getElementById("myPwaInstallButton");
-  if (myInstallButtonElement) {
-    myInstallButtonElement.style.display = "inline-block";
+  // Make our custom install button visible
+  const myInstallButton = document.getElementById("myPwaInstallButton");
+  if (myInstallButton) {
+    myInstallButton.style.display = "inline-block";
   }
 });
 
-// Function called when your custom button is clicked
+// Triggered via inline onclick handler from index.html
 async function myHandleInstallButtonClick() {
-  if (!mySavedBeforeInstallPromptEvent) {
+  if (!mySavedInstallPromptEvent) {
     return;
   }
   
-  // Show the native browser installation prompt
-  mySavedBeforeInstallPromptEvent.prompt();
+  // Show the native install prompt
+  mySavedInstallPromptEvent.prompt();
   
-  // Wait for the user to respond to the prompt
-  const myUserChoiceResult = await mySavedBeforeInstallPromptEvent.userChoice;
-  console.log("User selection outcome:", myUserChoiceResult.outcome);
+  // Wait for the user's choice using async/await
+  const myUserChoice = await mySavedInstallPromptEvent.userChoice;
+  console.log("User installation choice outcome:", myUserChoice.outcome);
   
-  // Clear the saved event variable since it can only be used once
-  mySavedBeforeInstallPromptEvent = null;
+  // Clear the prompt event resource since it can only be used once
+  mySavedInstallPromptEvent = null;
   
-  // Hide the custom install button again
-  const myInstallButtonElement = document.getElementById("myPwaInstallButton");
-  if (myInstallButtonElement) {
-    myInstallButtonElement.style.display = "none";
+  // Hide the button again
+  const myInstallButton = document.getElementById("myPwaInstallButton");
+  if (myInstallButton) {
+    myInstallButton.style.display = "none";
   }
 }
 
-// Automatically listen for successful installation completion
+// Reset if already installed
 window.addEventListener("appinstalled", () => {
-  console.log("PWA application was successfully installed on the device!");
+  console.log("Application successfully installed!");
+  mySavedInstallPromptEvent = null;
+  const myInstallButton = document.getElementById("myPwaInstallButton");
+  if (myInstallButton) {
+    myInstallButton.style.display = "none";
+  }
 });
 
-// Run the service worker registration
-myRegisterServiceWorkerFunction();
+// Execute registration
+myRegisterServiceWorker();
