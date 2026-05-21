@@ -8,9 +8,14 @@ const myCacheName = 'webmcu-repo-v1';
 
 // Core assets to cache on install.
 // '.' caches the root index.html via the SW scope.
+
 const myStaticAssets = [
-    '.',
-    'index.html',
+    './',
+    './index.html',
+    './pwa/manifest.json',
+    './pwa/icon-192.png',
+    './pwa/icon-512.png',
+    './pwa/pwa.js'
 ];
 
 // ─── Install: cache core assets ───────────────────────────────────────────────
