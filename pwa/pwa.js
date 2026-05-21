@@ -1,86 +1,62 @@
-// ─── webmcu-ai pwa.js ─────────────────────────────────────────────────────────
-// Include in your repo's root index.html:
-//   <script src="pwa/pwa.js"></script>
-//
-// Add one button anywhere in your root index.html:
-//   <button id="myAppBtn" onclick="myHandleAppAction()">Install Offline App (Free)</button>
-// ─────────────────────────────────────────────────────────────────────────────
+// pwa/pwa.js
 
-const myPwaRepoName = (function() {
-    const myParts = window.location.pathname.split('/').filter(Boolean);
-    return myParts[0] || "unknown";
-})();
+// Global variable to store the installation event
+let mySavedBeforeInstallPromptEvent = null;
 
-let myPwaDeferredPrompt = null;
-
-// ─── Button state ──────────────────────────────────────────────────────────────
-
-function myPwaUpdateBtn() {
-    const myBtn = document.getElementById('myAppBtn');
-    if (!myBtn) return;
-
-    // If running as an installed standalone PWA, update text and style for support
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-        myBtn.textContent = "♥ Support TinyML Education";
-        myBtn.style.background = "#e7f3ff"; 
-        myBtn.style.color = "#0056b3";
-        myBtn.style.border = "1px solid #007bff";
-        return;
+// Register the service worker using async/await
+async function myRegisterServiceWorkerFunction() {
+  if ("serviceWorker" in navigator) {
+    try {
+      const myRegistrationDetails = await navigator.serviceWorker.register("sw.js");
+      console.log("Service Worker registered successfully:", myRegistrationDetails);
+    } catch (myRegistrationError) {
+      console.error("Service Worker registration failed:", myRegistrationError);
     }
-
-    // Dynamic state based on browser installation readiness
-    if (myPwaDeferredPrompt) {
-        myBtn.textContent = "Install Offline App ↓";
-    } else {
-        myBtn.textContent = "Support Project / Open Collective";
-    }
+  }
 }
 
-// ─── Button click handler — called from onclick="myHandleAppAction()" ──────
+// Listen for the browser's native install prompt challenge
+window.addEventListener("beforeinstallprompt", (myEventDetails) => {
+  // Prevent the older default browser install banner from showing automatically
+  myEventDetails.preventDefault();
+  
+  // Save the event so we can trigger it later
+  mySavedBeforeInstallPromptEvent = myEventDetails;
+  
+  // Reveal your custom install button
+  const myInstallButtonElement = document.getElementById("myPwaInstallButton");
+  if (myInstallButtonElement) {
+    myInstallButtonElement.style.display = "inline-block";
+  }
+});
 
-async function myHandleAppAction() {
-    // If running standalone, go straight to the Open Collective page
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-        window.open("https://opencollective.com/mlsysbook", "_blank");
-        return;
-    }
-
-    // If the browser installation prompt is active, trigger it immediately
-    if (myPwaDeferredPrompt) {
-        myPwaDeferredPrompt.prompt();
-        const { outcome } = await myPwaDeferredPrompt.userChoice;
-        myPwaDeferredPrompt = null;
-        myPwaUpdateBtn();
-        return;
-    }
-
-    // Direct fallback: if no prompt is available, open the link instantly
-    window.open("https://opencollective.com/mlsysbook", "_blank");
+// Function called when your custom button is clicked
+async function myHandleInstallButtonClick() {
+  if (!mySavedBeforeInstallPromptEvent) {
+    return;
+  }
+  
+  // Show the native browser installation prompt
+  mySavedBeforeInstallPromptEvent.prompt();
+  
+  // Wait for the user to respond to the prompt
+  const myUserChoiceResult = await mySavedBeforeInstallPromptEvent.userChoice;
+  console.log("User selection outcome:", myUserChoiceResult.outcome);
+  
+  // Clear the saved event variable since it can only be used once
+  mySavedBeforeInstallPromptEvent = null;
+  
+  // Hide the custom install button again
+  const myInstallButtonElement = document.getElementById("myPwaInstallButton");
+  if (myInstallButtonElement) {
+    myInstallButtonElement.style.display = "none";
+  }
 }
 
-// ─── Service worker registration ──────────────────────────────────────────────
-
-function myPwaRegisterSW() {
-    if (!('serviceWorker' in navigator)) return;
-    const mySwPath = `/${myPwaRepoName}/sw.js`;
-    navigator.serviceWorker.register(mySwPath, { scope: `/${myPwaRepoName}/` })
-        .catch(err => console.warn('pwa.js: SW registration failed', err));
-}
-
-// ─── Init on load ──────────────────────────────────────────────────────────────
-
-window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    myPwaDeferredPrompt = e;
-    myPwaUpdateBtn();
+// Automatically listen for successful installation completion
+window.addEventListener("appinstalled", () => {
+  console.log("PWA application was successfully installed on the device!");
 });
 
-window.addEventListener('appinstalled', () => {
-    myPwaDeferredPrompt = null;
-    myPwaUpdateBtn();
-});
-
-window.addEventListener('load', () => {
-    myPwaRegisterSW();
-    myPwaUpdateBtn();
-});
+// Run the service worker registration
+myRegisterServiceWorkerFunction();
