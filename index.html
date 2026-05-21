@@ -69,11 +69,14 @@
 <div id="myMain">
 
   <!-- When making your own version these pages are not needed. Started here -->
-  <button id="myAppBtn" onclick="myHandleAppAction()" style="position:fixed; top:15px; right:15px; z-index:9999; cursor:pointer;">
-    Install As Offline App
-  </button>
-  <link rel="manifest" href="pwa/manifest.json">
-  <script src="pwa/pwa.js"></script>
+<button 
+  id="myPwaInstallButton" 
+  onclick="myHandleInstallButtonClick()" 
+  style="display: none; padding: 10px; background-color: blue; color: white; border: none; border-radius: 5px;">
+  Install App
+</button>
+
+<script src="pwa/pwa.js"></script>
   <!-- When making your own version these pages are not needed. Ended here -->
 
   <!-- FILE LIST -->
