@@ -7,7 +7,9 @@ async function myRegisterServiceWorker() {
   if ("serviceWorker" in navigator) {
     try {
       // sw.js is in the root directory, relative to index.html
-      const myRegistration = await navigator.serviceWorker.register("./sw.js");
+       const myRegistration = await navigator.serviceWorker.register("/on-device-fomo/sw.js", {
+         scope: "/on-device-fomo/"
+       });
       console.log("Service Worker registered successfully with scope:", myRegistration.scope);
     } catch (myError) {
       console.error("Service Worker registration failed:", myError);
