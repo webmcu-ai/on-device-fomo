@@ -6,7 +6,6 @@
 //   <button id="myAppBtn" onclick="myHandleAppAction()">Install Offline App (Free)</button>
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Derive repo name from URL path
 const myPwaRepoName = (function() {
     const myParts = window.location.pathname.split('/').filter(Boolean);
     return myParts[0] || "unknown";
@@ -20,7 +19,7 @@ function myPwaUpdateBtn() {
     const myBtn = document.getElementById('myAppBtn');
     if (!myBtn) return;
 
-    // If running as an installed standalone PWA, change the button to a support invite
+    // If running as an installed standalone PWA, update text and style for support
     if (window.matchMedia('(display-mode: standalone)').matches) {
         myBtn.textContent = "♥ Support TinyML Education";
         myBtn.style.background = "#e7f3ff"; 
@@ -29,26 +28,24 @@ function myPwaUpdateBtn() {
         return;
     }
 
-    // If the browser is primed and ready to install
+    // Dynamic state based on browser installation readiness
     if (myPwaDeferredPrompt) {
         myBtn.textContent = "Install Offline App ↓";
-        myBtn.style.display = '';
     } else {
-        // Fallback or post-install state on standard browser tab
-        myBtn.textContent = "Support Project / PWA Info";
+        myBtn.textContent = "Support Project / Open Collective";
     }
 }
 
 // ─── Button click handler — called from onclick="myHandleAppAction()" ──────
 
 async function myHandleAppAction() {
-    // If running standalone, clicking always goes straight to the Open Collective
+    // If running standalone, go straight to the Open Collective page
     if (window.matchMedia('(display-mode: standalone)').matches) {
         window.open("https://opencollective.com/mlsysbook", "_blank");
         return;
     }
 
-    // If the browser installation prompt is available, trigger it
+    // If the browser installation prompt is active, trigger it immediately
     if (myPwaDeferredPrompt) {
         myPwaDeferredPrompt.prompt();
         const { outcome } = await myPwaDeferredPrompt.userChoice;
@@ -57,16 +54,11 @@ async function myHandleAppAction() {
         return;
     }
 
-    // If no prompt is available (or they already dealt with it), open the support link
-    // and print a quick message in the console or alert for clarity.
-    const myConfirm = confirm("This app is optimized to work 100% offline. Would you like to visit our Open Collective page to support hardware distribution for the Global South?");
-    if (myConfirm) {
-        window.open("https://opencollective.com/mlsysbook", "_blank");
-    }
+    // Direct fallback: if no prompt is available, open the link instantly
+    window.open("https://opencollective.com/mlsysbook", "_blank");
 }
 
 // ─── Service worker registration ──────────────────────────────────────────────
-// Looks for sw.js exactly where you kept it: at the root of the repository
 
 function myPwaRegisterSW() {
     if (!('serviceWorker' in navigator)) return;
