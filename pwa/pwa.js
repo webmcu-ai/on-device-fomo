@@ -4,15 +4,17 @@ let mySavedInstallPromptEvent = null;
 
 // Register the service worker using async/await
 async function myRegisterServiceWorker() {
-  if ("serviceWorker" in navigator) {
+if ("serviceWorker" in navigator) {
     try {
-      // sw.js is in the root directory, relative to index.html
-       const myRegistration = await navigator.serviceWorker.register("/on-device-fomo/sw.js", {
-         scope: "/on-device-fomo/"
-       });
-      console.log("Service Worker registered successfully with scope:", myRegistration.scope);
+      // Automatically extracts the repository name (e.g., "/on-device-fomo/")
+      const myRepoScope = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+      
+      const myRegistration = await navigator.serviceWorker.register(`${myRepoScope}sw.js`, {
+        scope: myRepoScope
+      });
+      console.log("Dynamic PWA registered on scope:", myRegistration.scope);
     } catch (myError) {
-      console.error("Service Worker registration failed:", myError);
+      console.error("PWA registration failed:", myError);
     }
   }
 }
