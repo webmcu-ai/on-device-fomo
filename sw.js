@@ -1,66 +1,37 @@
-// ─── webmcu-ai repo service worker ───────────────────────────────────────────
-// Copy this file verbatim to the root of each repo.
-// It is intentionally generic — the repo name is inferred from scope.
-// Update myCacheName version string when you want to force a cache refresh.
-// ─────────────────────────────────────────────────────────────────────────────
-
-const myCacheName = 'webmcu-repo-v1';
-
-// Core assets to cache on install.
-// '.' caches the root index.html via the SW scope.
-
-const myStaticAssets = [
-    './',
-    './index.html',
-    './pwa/manifest.json',
-    './pwa/icon-192.png',
-    './pwa/icon-512.png',
-    './pwa/pwa.js'
+// sw.js
+const myCacheName = "fomo-cache-v1";
+const myAssetsToCache = [
+  "./",
+  "./index.html",
+  "./pwa/manifest.json",
+  "./pwa/pwa.js",
+  "./pwa/icon-192.png",
+  "./pwa/icon-512.png"
 ];
 
-// ─── Install: cache core assets ───────────────────────────────────────────────
-
-self.addEventListener('install', (e) => {
-    e.waitUntil(
-        caches.open(myCacheName)
-            .then(cache => cache.addAll(myStaticAssets))
-            .then(() => self.skipWaiting())
-    );
+// Install event using wait hooks
+self.addEventListener("install", (myEvent) => {
+  myEvent.waitUntil((async () => {
+    const myCache = await caches.open(myCacheName);
+    await myCache.addAll(myAssetsToCache);
+    await self.skipWaiting();
+  })());
 });
 
-// ─── Activate: remove old caches ─────────────────────────────────────────────
-
-self.addEventListener('activate', (e) => {
-    e.waitUntil(
-        caches.keys().then(myKeys =>
-            Promise.all(
-                myKeys
-                    .filter(key => key !== myCacheName)
-                    .map(key => caches.delete(key))
-            )
-        ).then(() => self.clients.claim())
-    );
+// Activate event to clean old caches
+self.addEventListener("activate", (myEvent) => {
+  myEvent.waitUntil((async () => {
+    await self.clients.claim();
+  })());
 });
 
-// ─── Fetch: cache-first with network fallback ─────────────────────────────────
-
-self.addEventListener('fetch', (e) => {
-    // Only handle GET requests; skip cross-origin (e.g. GitHub API calls)
-    if (e.request.method !== 'GET') return;
-    const myUrl = new URL(e.request.url);
-    if (myUrl.origin !== self.location.origin) return;
-
-    e.respondWith(
-        caches.match(e.request).then(cached => {
-            if (cached) return cached;
-            return fetch(e.request).then(response => {
-                // Cache successful same-origin responses dynamically
-                if (response.ok) {
-                    const myClone = response.clone();
-                    caches.open(myCacheName).then(cache => cache.put(e.request, myClone));
-                }
-                return response;
-            });
-        })
-    );
+// Fetch event using async/await response strategies
+self.addEventListener("fetch", (myEvent) => {
+  myEvent.respondWith((async () => {
+    const myCachedResponse = await caches.match(myEvent.request);
+    if (myCachedResponse) {
+      return myCachedResponse;
+    }
+    return fetch(myEvent.request);
+  })());
 });
