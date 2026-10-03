@@ -1,13 +1,15 @@
 // ======================================================
 // XIAO ML KIT (OR XIAO ESP32S3 SENSE)
-// FULL VISION ML WITH FOMO HEAD — v015
+// FULL VISION ML WITH FOMO HEAD — firmware-v005 (based on v015)
+//
+// Matched pair: firmware-v005.ino + index-v005.html (SD-card web trainer)
 //
 // Small Image collection, training, inference for education and proof of concept
 //
-// SD card stores: images in class folders
-// SD card stores: headers in bin and .h text char array format
+// SD card stores: images in class folders (+ optional annotations.json per class)
+// SD card stores: headers in bin and .h text char array format, header/config.json
 // Serial monitor and OLED output
-// OLED inference: clusters high-confidence FOMO cells, draws one bounding box per cluster
+// OLED inference: finds blobs of high-confidence FOMO cells for every object class, draws a box + centroid cross per blob
 // By Jeremy Ellis
 // With free tier assistance from: Claude (code overview), ChatGPT (Critique), Gemini (Research) and Copilot (Alternate)
 // Use at your own risk!
@@ -26,6 +28,33 @@
 // board_build.flash_mode = qio
 // board_upload.flash_size = 8MB
 //
+// ------------------------------------------------------
+// v005 CHANGES vs the original v015 (every edit is marked "// v005:")
+//  1. FOMO DECODE REWRITTEN. v015 decoded only the class with the highest average map (class 0, the blank
+//     folder, can win that vote) and merged everything within 6 cells into one box. v005 decodes EVERY object
+//     class separately, groups cells >= threshold into 8-connected blobs (several objects per class) and
+//     reports each blob's activation-weighted CENTROID as x,y in the 240x240 model frame (the frame the OLED shows).
+//     Serial: ... | Objects(2): [1Cup x=104 y=98 @0.52 n=3] [1Cup x=190 y=60 @0.41 n=1]
+//  2. BOX FRAME FIX (training). The firmware flips every decoded JPEG horizontally (myFlipImageHorizontal) but
+//     v015 applied annotations.json boxes to the FLIPPED image without flipping them. Annotation tools draw on
+//     the stored JPEG, so off-centre boxes were mirrored against the image content (a centred box is symmetric,
+//     so the default box was never affected). v005 mirrors boxes on load: annotations.json is in the STORED-JPEG
+//     frame, exactly what your FOMO Annotator shows. Set MY_BOXES_STORED_FRAME 0 for the old behaviour.
+//  3. On-device validation also prints an image-level detection count (TP FP FN TN); the old accuracy compares
+//     average maps over all classes, which is meaningless for the blank class.
+//  4. Layout (INPUT_SIZE, CONV1_FILTERS, CONV2_FILTERS, NUM_CLASSES) stays compile-time and every size derives
+//     from it (the 27 / 9 index strides now derive from the kernel defines); static_asserts guard it.
+//  5. Exact weight file size is a #define; a wrong-size /header/myWeights.bin is refused.
+//  6. /header/config.json (written by the web page): class names are read when the count matches NUM_CLASSES;
+//     input_size / filter counts only WARN. Layout never changes at runtime.
+//  7. Camera parity #defines. Brightness and AE level default to 0 = exactly what v015 did. hmirror/vflip are
+//     unchanged (1, 1). Changing hmirror/vflip flips every image already on the card relative to new ones.
+//  8. Web Serial debug frames (@F lines) only while the web page is connected ('D' heartbeat, 'd' off, 15 s timeout).
+//  9. Collection no longer reuses a file name (FILE_WRITE appends to an existing file and would corrupt it).
+//
+// Weights file: only the first NUM_CLASSES*CONV2_FILTERS floats of the output block are trained; the rest is an
+// unused tail kept so older myWeights.bin / myWeights.h files still load.
+// ------------------------------------------------------
 
 
 // ██████████████████████████████████████████████████████████████████████████████
@@ -54,6 +83,7 @@
 #include <algorithm>
 #include <U8g2lib.h>
 #include <Wire.h>
+#include "mbedtls/base64.h"   // v005: for web debug frames
 
 //U8G2_SSD1306_72X40_ER_1_HW_I2C u8g2(U8G2_R0, U8X8_PIN_NONE);
 U8G2_SSD1306_72X40_ER_1_HW_I2C u8g2(U8G2_R2, U8X8_PIN_NONE);  // 180 degree re orientation so OLED is the correct way up
@@ -62,7 +92,7 @@ U8G2_SSD1306_72X40_ER_1_HW_I2C u8g2(U8G2_R2, U8X8_PIN_NONE);  // 180 degree re o
 // CONFIGURATION & ML HYPERPARAMETERS
 // ======================================================
 
-#define NUM_CLASSES 2
+#define NUM_CLASSES 2     // v005: compile-time on purpose (buffers and weight file size depend on it)
 
 String myClassLabels[NUM_CLASSES] = {"0Blank", "1Cup"};
 
@@ -73,16 +103,41 @@ int BATCH_SIZE = 12;
 int TARGET_EPOCHS = 30;
 int VALIDATION_IMAGES = 5;  // last N images per class held out for validation (0 = disabled)
 
-// Detection threshold: only draw overlay when max cell confidence exceeds this
-const float myFomoThreshold = 0.38f;    // fixed threshold used when myUseDynamicThreshold = false
-
-// Dynamic threshold: set true to use (peakVal * myDynamicThresholdRatio), floored at myDynamicThresholdFloor
-const bool  myUseDynamicThreshold    = true;   // true = adaptive per-frame, false = fixed myFomoThreshold
-const float myDynamicThresholdRatio  = 0.90f;  // fraction of peak cell value to use as threshold
-const float myDynamicThresholdFloor  = 0.38f;  // minimum threshold even when peak is low
+// v005: the v015 detection constants (myFomoThreshold, myUseDynamicThreshold, myDynamicThresholdRatio, myDynamicThresholdFloor)
+// are replaced by MY_DET_ABS_THRESHOLD / MY_DET_REL_THRESHOLD in the DET block below.
 
 const int myThresholdPress = 1100;
 const int myThresholdRelease = 900;
+
+// ======================================================
+// v005: CAMERA / DATA-SOURCE PARITY (web page webcam should look like this)
+// ======================================================
+// ------------------------------------------------------
+// MY_V015_COMPAT: one switch that puts every behaviour that differs from the working v015 back to the v015 way.
+//   1 = v015 behaviour: boxes NOT mirrored when training, decode keeps 90% of the peak of the predicted class only,
+//       no brightness / AE-level calls and no warm-up frames (the camera is set up exactly as v015 did)
+//   0 = v005 behaviour (boxes mirrored, every object class decoded at 50% of its peak, camera parity settings)
+// Still in both modes: config.json, web-page debug frames, layout line and the Objects(...) x,y centroid line.
+// Use it to bisect: if inference is right with 1 and wrong with 0, flip the three lines below one at a time.
+// NOTE: a model trained while the setting was different keeps what it learned. After changing
+//       MY_BOXES_STORED_FRAME, retrain on the device (or train again in the web page).
+// ------------------------------------------------------
+#define MY_V015_COMPAT 1
+
+#define MY_CAM_HMIRROR        1   // v005: sensor horizontal mirror (v015 value: 1)
+#define MY_CAM_VFLIP          1   // v005: sensor vertical flip     (v015 value: 1)
+#define MY_CAM_BRIGHTNESS     0   // v005: -2..2, 0 = what v015 did (the web-page reference pair used +1; bench-tune)
+#define MY_CAM_AE_LEVEL       0   // v005: -2..2 auto-exposure level, 0 = what v015 did
+#if MY_V015_COMPAT
+  #define MY_CAM_WARMUP_FRAMES  0   // v015 did not discard frames
+#else
+  #define MY_CAM_WARMUP_FRAMES  3   // v005: frames discarded after camera init
+#endif
+#if MY_V015_COMPAT
+  #define MY_BOXES_STORED_FRAME 0   // v015 behaviour: boxes are used as they are in annotations.json
+#else
+  #define MY_BOXES_STORED_FRAME 1   // 1 = annotations.json boxes are in the stored-JPEG frame (mirrored on load)
+#endif
 
 
 // ======================================================
@@ -146,6 +201,13 @@ bool myWeightsTrained = false;
 #define CONV2_FILTERS 8
 #define CONV2_WEIGHTS (CONV2_KERNEL_SIZE * CONV2_KERNEL_SIZE * CONV1_FILTERS * CONV2_FILTERS)
 
+// v005: index strides that used to be literal 27 / 9 inside the loops. The loops below still use
+// a literal 3x3 kernel, so the kernel size is NOT a free setting (see static_assert further down).
+#define CONV1_PER_F (CONV1_KERNEL_SIZE * CONV1_KERNEL_SIZE * 3)   // weights per conv1 filter
+#define CONV1_ROW   (CONV1_KERNEL_SIZE * 3)                       // weights per kernel row (kx*3)
+#define CONV2_PER_C (CONV2_KERNEL_SIZE * CONV2_KERNEL_SIZE)       // weights per input channel
+#define CONV2_PER_F (CONV1_FILTERS * CONV2_PER_C)                 // weights per conv2 filter
+
 // Feature map sizes
 #define CONV1_OUTPUT_SIZE (INPUT_SIZE - 2)
 #define POOL1_OUTPUT_SIZE (CONV1_OUTPUT_SIZE / 2)
@@ -160,6 +222,29 @@ bool myWeightsTrained = false;
 
 // Dense output weights: 1x1 conv over flattened conv2 -> NUM_CLASSES scores per cell
 #define OUTPUT_WEIGHTS (FLATTENED_SIZE * NUM_CLASSES)
+
+// v005: exact size of /header/myWeights.bin in floats and bytes.
+// NOTE: only the first NUM_CLASSES*CONV2_FILTERS of the OUTPUT_WEIGHTS floats are ever used or trained
+// (1x1 head); the rest is an unused tail kept so the file stays compatible with older weight files.
+#define WEIGHT_FLOATS (CONV1_WEIGHTS + CONV1_FILTERS + CONV2_WEIGHTS + CONV2_FILTERS + OUTPUT_WEIGHTS + NUM_CLASSES)
+#define WEIGHT_BYTES  (WEIGHT_FLOATS * 4)
+
+// v005: layout guards
+static_assert(CONV1_KERNEL_SIZE == 3 && CONV2_KERNEL_SIZE == 3, "kernel loops are hard-coded 3x3");
+static_assert(INPUT_SIZE % 2 == 0, "INPUT_SIZE must be even so conv1 output is even for the 2x2 pool");
+static_assert(CONV2_OUTPUT_SIZE >= 1, "INPUT_SIZE too small: conv2 output must be at least 1x1 (use 8 or more)");
+static_assert(NUM_CLASSES >= 2, "need a background class (index 0) and at least one object class");
+static_assert(CONV1_FILTERS >= 1 && CONV2_FILTERS >= 1, "filter counts must be at least 1");
+
+#ifdef USE_BAKED_WEIGHTS
+// v005: a baked myWeights.h from a different layout would make memcpy read past the array
+static_assert(sizeof(myModel_conv1_w)  == CONV1_WEIGHTS  * 4, "myWeights.h conv1_w size differs from this sketch layout");
+static_assert(sizeof(myModel_conv1_b)  == CONV1_FILTERS  * 4, "myWeights.h conv1_b size differs from this sketch layout");
+static_assert(sizeof(myModel_conv2_w)  == CONV2_WEIGHTS  * 4, "myWeights.h conv2_w size differs from this sketch layout");
+static_assert(sizeof(myModel_conv2_b)  == CONV2_FILTERS  * 4, "myWeights.h conv2_b size differs from this sketch layout");
+static_assert(sizeof(myModel_output_w) == OUTPUT_WEIGHTS * 4, "myWeights.h output_w size differs from this sketch layout");
+static_assert(sizeof(myModel_output_b) == NUM_CLASSES    * 4, "myWeights.h output_b size differs from this sketch layout");
+#endif
 
 // ======================================================
 // GLOBAL VARIABLE DEFINITIONS
@@ -223,6 +308,10 @@ struct TrainingItem {
 };
 std::vector<TrainingItem> myTrainingData;
 
+// v005: one decoded FOMO blob (used by myDecodeDetections). MUST stay above the first function: the Arduino IDE
+// inserts auto-generated prototypes before it, and a prototype that mentions MyDet needs the type already declared.
+struct MyDet { int cls; float cx, cy, conf; int cells, minX, minY, maxX, maxY; };
+
 // ======================================================
 // UTILITY FUNCTIONS
 // ======================================================
@@ -252,6 +341,162 @@ void myFlipImageHorizontal() {
     }
   }
 }
+
+// ==DBG START==
+// ======================================================
+// v005: WEB SERIAL DEBUG FRAMES (only while the web page is connected)
+// Page sends 'D' on connect and every 5 s, 'd' on disconnect. 'D' / 'd' are not used by any other
+// serial command in this sketch. 15 s without a 'D' turns frames off by itself.
+// One frame = one ASCII line (11 space-separated fields):
+//   @F <kind> <n> <pred> <probs|-> <peaks|-> <layout> <input-centre|-> <mapSide> <map b64|-> <jpeg b64>
+//   kind  I = inference (every 10th), C = sample just saved, P = slow preview while collecting (~1/s)
+//   probs = GAP score per class (4 decimals, comma list); peaks = highest cell value per class
+//           (this is the FOMO analogue of logits); layout = INPUT x CONV1 x CONV2, e.g. 64x4x8
+//   input-centre = centre pixel r,g,b of the model input (floats 0..1)
+//   map = NUM_CLASSES*FOMO_CELLS bytes (class-major, value*255) base64; payload = raw camera JPEG
+// Kinds C and P carry only the JPEG (no model run), the other fields are '-'.
+// Cost: about 14 KB per frame with a 240x240 JPEG. A native USB port copes easily; a UART bridge
+// at 115200 baud is about 100 times slower, so expect a frame to take over a second there.
+// ======================================================
+static bool myDebugOn = false;
+static unsigned long myDebugLastD = 0;
+static int myDebugInferN = 0;
+static int myDebugSeq = 0;
+
+// returns true when the char was a heartbeat char (caller should ignore it)
+bool myDebugHandleChar(char c) {
+  if (c == 'D') {
+    if (!myDebugOn) { myDebugOn = true; Serial.println("Debug frames ON"); }
+    myDebugLastD = millis();
+    return true;
+  }
+  if (c == 'd') {
+    if (myDebugOn) { myDebugOn = false; Serial.println("Debug frames OFF"); }
+    return true;
+  }
+  return false;
+}
+
+void myDebugTick() {
+  if (myDebugOn && millis() - myDebugLastD > 15000) { myDebugOn = false; Serial.println("Debug frames OFF"); }
+}
+
+// base64 in 384-byte chunks (multiple of 3); 520 = 512 chars + NUL that mbedtls requires
+static void myDebugB64(const uint8_t* d, size_t n) {
+  unsigned char out[520];
+  for (size_t i = 0; i < n; i += 384) {
+    size_t c = (n - i < 384) ? (n - i) : 384, ol = 0;
+    mbedtls_base64_encode(out, sizeof(out), &ol, d + i, c);
+    Serial.write(out, ol);
+  }
+}
+
+static void myDebugB64Map() {
+  uint8_t chunk[384]; unsigned char out[520];
+  const int total = NUM_CLASSES * FOMO_CELLS;
+  for (int i = 0; i < total; i += 384) {
+    int c = (total - i < 384) ? (total - i) : 384;
+    for (int j = 0; j < c; j++) chunk[j] = (uint8_t)constrain((int)(myFomoMap[i + j] * 255.0f + 0.5f), 0, 255);
+    size_t ol = 0;
+    mbedtls_base64_encode(out, sizeof(out), &ol, chunk, c);
+    Serial.write(out, ol);
+  }
+}
+
+void myDebugFrame(char kind, bool withModel, int pred, camera_fb_t* fb) {
+  if (!myDebugOn || !Serial || !fb) return;
+  if (withModel && !(myFomoMap && myDense_output && myInputBuffer)) return;
+  Serial.print("@F "); Serial.print(kind); Serial.print(' '); Serial.print(++myDebugSeq); Serial.print(' ');
+  if (withModel) {
+    Serial.print(pred); Serial.print(' ');
+    for (int i = 0; i < NUM_CLASSES; i++) { Serial.print(myDense_output[i], 4); if (i < NUM_CLASSES - 1) Serial.print(','); }
+    Serial.print(' ');
+    for (int i = 0; i < NUM_CLASSES; i++) {
+      float pk = 0; float* m = myFomoMap + i * FOMO_CELLS;
+      for (int c = 0; c < FOMO_CELLS; c++) if (m[c] > pk) pk = m[c];
+      Serial.print(pk, 4); if (i < NUM_CLASSES - 1) Serial.print(',');
+    }
+    Serial.print(' ');
+  } else {
+    Serial.print("- - - ");
+  }
+  Serial.printf("%dx%dx%d ", INPUT_SIZE, CONV1_FILTERS, CONV2_FILTERS);
+  if (withModel) {
+    int ci = ((INPUT_SIZE / 2) * INPUT_SIZE + INPUT_SIZE / 2) * 3;
+    Serial.print(myInputBuffer[ci], 4); Serial.print(','); Serial.print(myInputBuffer[ci + 1], 4);
+    Serial.print(','); Serial.print(myInputBuffer[ci + 2], 4);
+  } else Serial.print('-');
+  Serial.printf(" %d ", FOMO_GRID);
+  if (withModel) myDebugB64Map(); else Serial.print('-');
+  Serial.print(' ');
+  myDebugB64(fb->buf, fb->len);
+  Serial.print('\n');
+}
+// ==DBG END==
+
+// ==DET START==
+// ======================================================
+// v005: FOMO DECODE for every object class (1..NUM_CLASSES-1). Class 0 (blank) is never decoded.
+// A cell counts when it is >= MY_DET_ABS_THRESHOLD and >= MY_DET_REL_THRESHOLD * (class peak in this frame).
+// Cells are grouped into 8-connected blobs scanned row by row; each blob gives
+//   centroid = activation-weighted mean of its cell indices (cell i has its centre at i + 0.5 of the grid),
+//   conf = highest cell value, n = cell count, bounding cells.
+// Pixel x,y in the 240x240 model frame = (centroid + 0.5) * 240 / FOMO_GRID.
+// The web page runs the same algorithm (checked against this code on the host), so numbers can be compared.
+// ======================================================
+#define MY_DET_ABS_THRESHOLD  0.38f   // v015 floor
+#if MY_V015_COMPAT
+  #define MY_DET_REL_THRESHOLD  0.90f   // v015 value: keeps only the strongest object
+#else
+  #define MY_DET_REL_THRESHOLD  0.50f
+#endif
+#define MY_DET_MIN_CELLS      1
+#define MY_DET_MAX_PER_CLASS  8
+#define MY_DET_MAX_TOTAL      (MY_DET_MAX_PER_CLASS * (NUM_CLASSES - 1))
+
+// (struct MyDet is declared up with the other structs, before the first function, so Arduino's auto-generated prototypes can see it)
+static int     myDetStack[FOMO_CELLS];
+static uint8_t myDetSeen[FOMO_CELLS];
+
+inline int myDetPx(float cellCentre) { return (int)((cellCentre + 0.5f) * 240.0f / FOMO_GRID + 0.5f); }
+
+int myDecodeDetections(const float* fomo, MyDet* out, int maxOut, int onlyClass) {   // onlyClass: -1 = every object class
+  int n = 0;
+  for (int k = 1; k < NUM_CLASSES; k++) {
+    if (onlyClass >= 0 && k != onlyClass) continue;
+    const float* map = fomo + k * FOMO_CELLS;
+    float peak = 0;
+    for (int c = 0; c < FOMO_CELLS; c++) if (map[c] > peak) peak = map[c];
+    if (peak < MY_DET_ABS_THRESHOLD) continue;
+    float thr = max(MY_DET_ABS_THRESHOLD, MY_DET_REL_THRESHOLD * peak);
+    memset(myDetSeen, 0, sizeof(myDetSeen));
+    MyDet tmp[16]; int nt = 0;
+    for (int c = 0; c < FOMO_CELLS && nt < 16; c++) {
+      if (myDetSeen[c] || map[c] < thr) continue;
+      int sp = 0; myDetStack[sp++] = c; myDetSeen[c] = 1;
+      float sw = 0, sx = 0, sy = 0, mx = 0; int cells = 0, x0 = FOMO_GRID, y0 = FOMO_GRID, x1 = -1, y1 = -1;
+      while (sp > 0) {
+        int q = myDetStack[--sp], gx = q % FOMO_GRID, gy = q / FOMO_GRID; float v = map[q];
+        sw += v; sx += v * gx; sy += v * gy; cells++; if (v > mx) mx = v;
+        if (gx < x0) x0 = gx; if (gx > x1) x1 = gx; if (gy < y0) y0 = gy; if (gy > y1) y1 = gy;
+        for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) {
+          int nx = gx + dx, ny = gy + dy;
+          if ((dx == 0 && dy == 0) || nx < 0 || ny < 0 || nx >= FOMO_GRID || ny >= FOMO_GRID) continue;
+          int nq = ny * FOMO_GRID + nx;
+          if (!myDetSeen[nq] && map[nq] >= thr) { myDetSeen[nq] = 1; myDetStack[sp++] = nq; }
+        }
+      }
+      if (cells >= MY_DET_MIN_CELLS) {
+        MyDet d; d.cls = k; d.cx = sx / sw; d.cy = sy / sw; d.conf = mx; d.cells = cells; d.minX = x0; d.minY = y0; d.maxX = x1; d.maxY = y1;
+        tmp[nt++] = d;
+      }
+    }
+    for (int i = 1; i < nt; i++) { MyDet d = tmp[i]; int j = i - 1; while (j >= 0 && tmp[j].conf < d.conf) { tmp[j + 1] = tmp[j]; j--; } tmp[j + 1] = d; }   // stable, strongest first
+    for (int i = 0; i < nt && i < MY_DET_MAX_PER_CLASS && n < maxOut; i++) out[n++] = tmp[i];
+  }
+  return n;
+}
+// ==DET END==
 
 // ======================================================
 // UNIFIED TOUCH INPUT FUNCTIONS
@@ -370,7 +615,7 @@ void myAllocateMemory() {
   myOutput_b_m = (float*)ps_calloc(NUM_CLASSES,     sizeof(float));
   myOutput_b_v = (float*)ps_calloc(NUM_CLASSES,     sizeof(float));
 
-  // BUG FIX (v002): removed double allocation (new float[] blocks leaked before ps_malloc overwrote the pointer)
+  // BUG FIX (v002 of the old numbering): removed double allocation (new float[] blocks leaked before ps_malloc overwrote the pointer)
   myConv1_output = (float*)ps_malloc(CONV1_OUTPUT_SIZE * CONV1_OUTPUT_SIZE * CONV1_FILTERS * sizeof(float));
   myPool1_output = (float*)ps_malloc(POOL1_OUTPUT_SIZE * POOL1_OUTPUT_SIZE * CONV1_FILTERS * sizeof(float));
   myConv2_output = (float*)ps_malloc(CONV2_OUTPUT_SIZE * CONV2_OUTPUT_SIZE * CONV2_FILTERS * sizeof(float));
@@ -394,12 +639,12 @@ void myAllocateMemory() {
 
   Serial.printf("Free PSRAM after allocation: %d bytes\n", ESP.getFreePsram());
 
-  // He initialization
-  float c1std = sqrt(2.0 / (9.0 * 3));
+  // He initialization (v005: fan-in constants derive from the kernel defines instead of repeating 9.0*3)
+  float c1std = sqrt(2.0 / (float)CONV1_PER_F);
   for(int i=0; i<CONV1_WEIGHTS; i++) myConv1_w[i] = ((float)rand()/RAND_MAX - 0.5f) * 2.0f * c1std;
   for(int i=0; i<CONV1_FILTERS; i++) myConv1_b[i] = 0;
 
-  float c2std = sqrt(2.0 / (9.0 * CONV1_FILTERS));
+  float c2std = sqrt(2.0 / (float)CONV2_PER_F);
   for(int i=0; i<CONV2_WEIGHTS; i++) myConv2_w[i] = ((float)rand()/RAND_MAX - 0.5f) * 2.0f * c2std;
   for(int i=0; i<CONV2_FILTERS; i++) myConv2_b[i] = 0;
 
@@ -460,6 +705,16 @@ bool myLoadWeights() {
   Serial.println("Loading weights from SD...");
   File f = SD.open("/header/myWeights.bin", FILE_READ);
   if (!f) return false;
+  // v005: refuse a weights file that does not match this sketch's compile-time layout
+  size_t mySz = f.size();
+  if (mySz != (size_t)WEIGHT_BYTES) {
+    Serial.printf("ERROR: /header/myWeights.bin is %u bytes but this sketch needs %u bytes\n", (unsigned)mySz, (unsigned)WEIGHT_BYTES);
+    Serial.printf("Sketch layout: INPUT_SIZE=%d CONV1_FILTERS=%d CONV2_FILTERS=%d NUM_CLASSES=%d FOMO_GRID=%d\n",
+                  INPUT_SIZE, CONV1_FILTERS, CONV2_FILTERS, NUM_CLASSES, FOMO_GRID);
+    Serial.println("Weights file NOT loaded (falling back to baked or random weights). Training will overwrite it with this layout.");
+    f.close();
+    return false;
+  }
   f.read((uint8_t*)myConv1_w,  CONV1_WEIGHTS  * 4);
   f.read((uint8_t*)myConv1_b,  CONV1_FILTERS  * 4);
   f.read((uint8_t*)myConv2_w,  CONV2_WEIGHTS  * 4);
@@ -488,6 +743,74 @@ void mySaveWeights() {
   }
   myExportHeader();
 }
+
+// ==CFG PARSE START==
+// ======================================================
+// v005: /header/config.json (written by the web page), tiny hand-written parser, no JSON library.
+// Only the "classes" string list is applied, and only when its length equals NUM_CLASSES.
+// input_size / conv1_filters / conv2_filters are compared with the compiled values and only
+// produce a WARNING: the layout is compile-time and never changes at runtime.
+// Class names become folder names, so names must not contain quotes or backslashes.
+// ======================================================
+static bool myJsonFindInt(const String& t, const char* key, int& out) {
+  int k = t.indexOf(String("\"") + key + "\"");
+  if (k < 0) return false;
+  int c = t.indexOf(':', k);
+  if (c < 0) return false;
+  out = t.substring(c + 1).toInt();   // toInt skips leading spaces
+  return true;
+}
+
+static void myCfgCompare(const String& t, const char* key, int compiled) {
+  int v;
+  if (myJsonFindInt(t, key, v) && v != compiled)
+    Serial.printf("WARNING: config.json %s=%d but this sketch is compiled with %d (weights from the page will not fit)\n", key, v, compiled);
+}
+
+void myReadConfigJson() {
+  if (!mySDavailable) return;
+  if (!SD.exists("/header/config.json")) { Serial.println("No /header/config.json - using compiled class labels"); return; }
+  File f = SD.open("/header/config.json", FILE_READ);
+  if (!f) return;
+  String t = "";
+  while (f.available() && t.length() < 4096) t += (char)f.read();   // cap around 4 KB
+  f.close();
+
+  int k = t.indexOf("\"classes\"");
+  int a = (k < 0) ? -1 : t.indexOf('[', k);
+  int b = (a < 0) ? -1 : t.indexOf(']', a);
+  if (a < 0 || b < 0) {
+    Serial.println("config.json: no \"classes\" list - keeping compiled class labels");
+  } else {
+    String names[NUM_CLASSES];
+    int n = 0, p = a + 1;
+    bool ok = true;
+    while (true) {
+      int q1 = t.indexOf('"', p);
+      if (q1 < 0 || q1 > b) break;
+      int q2 = t.indexOf('"', q1 + 1);
+      if (q2 < 0 || q2 > b) { ok = false; break; }
+      if (n < NUM_CLASSES) names[n] = t.substring(q1 + 1, q2);
+      n++;
+      p = q2 + 1;
+    }
+    if (ok && n == NUM_CLASSES) {
+      for (int i = 0; i < NUM_CLASSES; i++) myClassLabels[i] = names[i];
+      Serial.println("Class labels read from /header/config.json");
+    } else {
+      Serial.printf("config.json lists %d classes but NUM_CLASSES=%d - keeping compiled class labels\n", n, NUM_CLASSES);
+    }
+  }
+  myCfgCompare(t, "input_size", INPUT_SIZE);
+  myCfgCompare(t, "conv1_filters", CONV1_FILTERS);
+  myCfgCompare(t, "conv2_filters", CONV2_FILTERS);
+  int bf = t.indexOf("\"boxes_frame\"");   // v005: the page writes "boxes_frame":"stored"
+  if (bf >= 0) {
+    bool cfgStored = t.indexOf("\"stored\"", bf) > bf;
+    if (cfgStored != (MY_BOXES_STORED_FRAME != 0)) Serial.println("WARNING: config.json boxes_frame does not match MY_BOXES_STORED_FRAME in this sketch");
+  }
+}
+// ==CFG PARSE END==
 
 
 // ======================================================
@@ -570,6 +893,13 @@ std::vector<FomoBox> myParseBoxesForFile(const String& jsonText, const String& f
     pos = objClose + 1;
   }
   return result;
+}
+
+// v005: annotations.json boxes are drawn on the STORED JPEG, but training sees the horizontally flipped image
+void myMirrorBoxesIfStored(std::vector<FomoBox>& v) {
+#if MY_BOXES_STORED_FRAME
+  for (FomoBox& b : v) { float nx1 = 1.0f - b.x2, nx2 = 1.0f - b.x1; b.x1 = nx1; b.x2 = nx2; }
+#endif
 }
 
 // Load the full annotations.json text for a class folder.
@@ -719,6 +1049,13 @@ void setup() {
   Serial.println("\n=== XIAO ESP32-S3 ML System Starting ===");
   Serial.printf("Free heap: %d bytes\n", ESP.getFreeHeap());
   Serial.printf("Free PSRAM: %d bytes\n", ESP.getFreePsram());
+  // v005: layout line, compare with the web page (Train section shows the same numbers)
+  Serial.printf("Layout: INPUT_SIZE=%d CONV1_FILTERS=%d CONV2_FILTERS=%d NUM_CLASSES=%d FOMO_GRID=%d weights=%d floats (%d bytes)\n",
+                INPUT_SIZE, CONV1_FILTERS, CONV2_FILTERS, NUM_CLASSES, FOMO_GRID, WEIGHT_FLOATS, WEIGHT_BYTES);
+
+  Serial.printf("MY_V015_COMPAT=%d\n", MY_V015_COMPAT);
+  Serial.printf("Decode: abs>=%.2f rel>=%.2f minCells=%d maxPerClass=%d boxes_stored_frame=%d\n",
+                MY_DET_ABS_THRESHOLD, MY_DET_REL_THRESHOLD, MY_DET_MIN_CELLS, MY_DET_MAX_PER_CLASS, MY_BOXES_STORED_FRAME);
 
   myRgbBuffer = (uint8_t*)ps_malloc(240 * 240 * 3);
   if (!myRgbBuffer) Serial.println("Failed to allocate RGB buffer!");
@@ -743,6 +1080,7 @@ void setup() {
     delay(2000);
   } else {
     Serial.println("SD card mounted successfully");
+    myReadConfigJson();   // v005: class labels from /header/config.json
   }
 
   camera_config_t config;
@@ -759,20 +1097,30 @@ void setup() {
   config.xclk_freq_hz = 20000000;    config.pixel_format = PIXFORMAT_JPEG;
   config.frame_size   = FRAMESIZE_240X240; config.jpeg_quality = 12;
   config.fb_count = 1;
-  esp_camera_init(&config);
-  Serial.println("Camera initialized");
-
-
-
- // sensor_t* s = esp_camera_sensor_get();
- // if (s != NULL) { s->set_hmirror(s, 1); }
-
-// to flip the camera image
-sensor_t* mySensor = esp_camera_sensor_get();
-if (mySensor != NULL) {
-  mySensor->set_vflip(mySensor, 1);   // Flips vertically
-  mySensor->set_hmirror(mySensor, 1); // Flips horizontally
-}
+  esp_err_t myCamErr = esp_camera_init(&config);   // v005: return value is now checked
+  if (myCamErr != ESP_OK) {
+    Serial.printf("ERROR: camera init failed (0x%x) - collection and inference will not work\n", myCamErr);
+  } else {
+    Serial.println("Camera initialized");
+    // v005: camera parity settings (hmirror/vflip same as v015; brightness and AE level are new)
+    sensor_t* mySensor = esp_camera_sensor_get();
+    if (mySensor != NULL) {
+      mySensor->set_vflip(mySensor, MY_CAM_VFLIP);
+      mySensor->set_hmirror(mySensor, MY_CAM_HMIRROR);
+#if !MY_V015_COMPAT
+      mySensor->set_brightness(mySensor, MY_CAM_BRIGHTNESS);
+      mySensor->set_ae_level(mySensor, MY_CAM_AE_LEVEL);
+#endif
+    } else {
+      Serial.println("WARNING: camera sensor handle is null - flip/brightness settings not applied");
+    }
+    // v005: discard the first frames so exposure can settle
+    for (int w = 0; w < MY_CAM_WARMUP_FRAMES; w++) {
+      camera_fb_t* myWarm = esp_camera_fb_get();
+      if (myWarm) esp_camera_fb_return(myWarm);
+      delay(30);
+    }
+  }
 
   esp_log_level_set("*", ESP_LOG_WARN);
   esp_log_level_set("esp_camera", ESP_LOG_ERROR);
@@ -803,6 +1151,7 @@ if (mySensor != NULL) {
 }
 
 void loop() {
+  myDebugTick();   // v005
   myHandleMenuNavigation();
 }
 
@@ -886,11 +1235,13 @@ void myActionCollect(int classIdx) {
 
   unsigned long lastCameraDrain = 0;
   unsigned long lastOLED = 0;
+  unsigned long lastDebugP = 0;   // v005: slow preview frame for the web page
   bool oledNeedsUpdate = false;
   bool shouldCapture = false;
 
   while (true) {
     unsigned long now = millis();
+    myDebugTick();   // v005
 
     if (now - lastCameraDrain > 50) {
       lastCameraDrain = now;
@@ -903,6 +1254,7 @@ void myActionCollect(int classIdx) {
               oledNeedsUpdate = true; lastOLED = now;
             }
           }
+          if (myDebugOn && now - lastDebugP > 1000) { lastDebugP = now; myDebugFrame('P', false, 0, fb); }   // v005
           esp_camera_fb_return(fb);
         }
       }
@@ -915,6 +1267,7 @@ void myActionCollect(int classIdx) {
 
     if (Serial.available()) {
       char c = Serial.read();
+      if (myDebugHandleChar(c)) c = 0;   // v005: heartbeat chars D / d
       if (c == 'l' || c == 'L') { myResetMenuState(); return; }
       else if (c == 't' || c == 'T') { shouldCapture = true; }
     }
@@ -928,12 +1281,14 @@ void myActionCollect(int classIdx) {
       camera_fb_t* fb = esp_camera_fb_get();
       if (fb) {
         String fileName = path + "/img_" + String(millis()) + ".jpg";
+        for (int dup = 1; SD.exists(fileName) && dup < 100; dup++) fileName = path + "/img_" + String(millis()) + "_" + String(dup) + ".jpg";   // v005: FILE_WRITE appends, never reuse a name
         File file = SD.open(fileName, FILE_WRITE);
         if (file) {
           file.write(fb->buf, fb->len);
           file.close();
           counts[classIdx]++;
           Serial.printf("Saved: %s (Total: %d)\n", fileName.c_str(), counts[classIdx]);
+          myDebugFrame('C', false, 0, fb);   // v005: sample just saved
           myDisplayImageOnOLED(fb, counts[classIdx]);
           delay(300);
           lastOLED = millis();
@@ -969,7 +1324,7 @@ void myForwardPass(float* input) {
         for(int ky=0; ky<3; ky++) {
           for(int kx=0; kx<3; kx++) {
             int inPos = ((y+ky)*INPUT_SIZE + (x+kx)) * 3;
-            int wPos  = f*27 + ky*9 + kx*3;
+            int wPos  = f*CONV1_PER_F + ky*CONV1_ROW + kx*3;   // v005: was f*27 + ky*9 + kx*3
             sum += input[inPos]   * myConv1_w[wPos]   +
                    input[inPos+1] * myConv1_w[wPos+1] +
                    input[inPos+2] * myConv1_w[wPos+2];
@@ -997,7 +1352,7 @@ void myForwardPass(float* input) {
   }
 
   // --- Conv2: POOL1 -> CONV2_OUTPUT_SIZE x CONV2_OUTPUT_SIZE x CONV2_FILTERS ---
-  // Weight layout: myConv2_w[f * CONV1_FILTERS*9 + c*9 + ky*3 + kx]  i.e. [f, c, ky, kx]
+  // Weight layout: myConv2_w[f * CONV2_PER_F + c*CONV2_PER_C + ky*3 + kx]  i.e. [f, c, ky, kx]
   for(int f=0; f<CONV2_FILTERS; f++) {
     int ob = f * CONV2_OUTPUT_SIZE * CONV2_OUTPUT_SIZE;
     for(int y=0; y<CONV2_OUTPUT_SIZE; y++) {
@@ -1008,7 +1363,7 @@ void myForwardPass(float* input) {
           for(int ky=0; ky<3; ky++) {
             for(int kx=0; kx<3; kx++) {
               sum += myPool1_output[ib + (y+ky)*POOL1_OUTPUT_SIZE + (x+kx)] *
-                     myConv2_w[f * CONV1_FILTERS*9 + c*9 + ky*3 + kx];
+                     myConv2_w[f * CONV2_PER_F + c*CONV2_PER_C + ky*3 + kx];   // v005: was CONV1_FILTERS*9 / c*9
             }
           }
         }
@@ -1140,7 +1495,7 @@ void myBackwardConv2() {
           for(int ky=0; ky<3; ky++) {
             for(int kx=0; kx<3; kx++) {
               int pi = ib + (y+ky)*POOL1_OUTPUT_SIZE + (x+kx);
-              int wi = f * CONV1_FILTERS*9 + c*9 + ky*3 + kx;
+              int wi = f * CONV2_PER_F + c*CONV2_PER_C + ky*3 + kx;   // v005: derived strides
               myConv2_w_grad[wi] += grad * myPool1_output[pi];
               myPool1_grad[pi]   += grad * myConv2_w[wi];
             }
@@ -1191,7 +1546,7 @@ void myBackwardConv1() {
         for(int ky=0; ky<3; ky++) {
           for(int kx=0; kx<3; kx++) {
             int inPos = ((y+ky)*INPUT_SIZE + (x+kx)) * 3;
-            int wPos  = f*27 + ky*9 + kx*3;
+            int wPos  = f*CONV1_PER_F + ky*CONV1_ROW + kx*3;   // v005: was f*27 + ky*9 + kx*3
             myConv1_w_grad[wPos]   += grad * myInputBuffer[inPos];
             myConv1_w_grad[wPos+1] += grad * myInputBuffer[inPos+1];
             myConv1_w_grad[wPos+2] += grad * myInputBuffer[inPos+2];
@@ -1275,6 +1630,7 @@ void myActionTrain() {
                 // boxes vector stays empty
               } else if (hasJson) {
                 item.boxes = myParseBoxesForFile(jsonText, fn);
+                myMirrorBoxesIfStored(item.boxes);   // v005
                 // If this file wasn't in the JSON, fall back to default box
                 if (item.boxes.empty()) item.boxes.push_back(myDefaultBox);
               } else {
@@ -1332,7 +1688,7 @@ void myActionTrain() {
     float runningLoss = 0;
     int lossCount = 0;
 
-    // BUG FIX (v002): static array for targetMap was wrong size (FOMO_CELLS, not NUM_CLASSES).
+    // BUG FIX (old v002): static array for targetMap was wrong size (FOMO_CELLS, not NUM_CLASSES).
     // Now heap-allocated with the correct size.
     float* myTargetMap = (float*)ps_malloc(FOMO_CELLS * sizeof(float));
     if (!myTargetMap) { Serial.println("OOM: targetMap"); myResetMenuState(); return; }
@@ -1478,7 +1834,7 @@ void myActionTrain() {
 
     // Validation pass using myDense_output (GAP of FOMO map)
     if (!myValidationData.empty()) {
-      int valCorrect = 0, valCount = 0;
+      int valCorrect = 0, valCount = 0, dTP = 0, dFP = 0, dFN = 0, dTN = 0;   // v005: detection counts
       for (auto& vitem : myValidationData) {
         if (!myLoadImageFromFile(vitem.path.c_str(), myInputBuffer)) continue;
         myForwardPass(myInputBuffer);
@@ -1487,10 +1843,16 @@ void myActionTrain() {
           if (myDense_output[j] > myDense_output[pred]) pred = j;
         if (pred == vitem.label) valCorrect++;
         valCount++;
+        { // v005: image-level detection check (did any object blob appear?)
+          MyDet vd[MY_DET_MAX_TOTAL];
+          bool has = myDecodeDetections(myFomoMap, vd, MY_DET_MAX_TOTAL, -1) > 0;
+          if (vitem.label > 0) { if (has) dTP++; else dFN++; } else { if (has) dFP++; else dTN++; }
+        }
       }
       if (valCount > 0) {
         Serial.printf("Validation Accuracy: %.1f%%  (%d/%d correct)\n",
                       100.0f * valCorrect / valCount, valCorrect, valCount);
+        Serial.printf("Validation detection (image level, any object blob): TP=%d FP=%d FN=%d TN=%d  (the accuracy above compares average maps and says little for the blank class)\n", dTP, dFP, dFN, dTN);
       }
     }
 
@@ -1511,6 +1873,7 @@ void myActionTrain() {
     while (true) {
       if (Serial.available()) {
         char c = Serial.read();
+        if (myDebugHandleChar(c)) c = 0;   // v005
         if (c == 'x' || c == 'X' || c == 'l' || c == 'L') { myResetMenuState(); return; }
         else if (c == 't' || c == 'T') { break; }
       }
@@ -1527,10 +1890,9 @@ void myActionTrain() {
 // ██                                                                          ██
 // ██  PART 3: INFERENCE FUNCTION WITH FOMO OLED OVERLAY                       ██
 // ██                                                                          ██
-// ██  After every 10th frame, draws the live camera image on the OLED, then   ██
-// ██  overlays a small rectangle centred on the highest-confidence FOMO cell   ██
-// ██  for the predicted class (if confidence exceeds myFomoThreshold).        ██
-// ██  A label bar at the bottom shows class name and detected cluster count.   ██
+// ██  Every frame: decode all object classes into blobs (weighted centroids),  ██
+// ██  print them on serial; every 10th frame draw the camera image on the     ██
+// ██  OLED with a box and centroid cross per blob.                            ██
 // ██                                                                          ██
 // ██████████████████████████████████████████████████████████████████████████████
 
@@ -1585,19 +1947,17 @@ void myActionInfer() {
   unsigned long frameTimes[10];
   int frameIndex = 0;
   int pred = 0;
-  float* predMap = nullptr;   // points into myFomoMap for the predicted class
-  int peakCell = 0;
-  float peakVal = 0.0f;
-  int peakGridX = 0;
-  int peakGridY = 0;
-  float myActiveThreshold = myUseDynamicThreshold ? myDynamicThresholdFloor : myFomoThreshold;
+  MyDet myDets[MY_DET_MAX_TOTAL];    // v005: every blob of every object class
+  int myDetN = 0;
 
   while (true) {
     unsigned long frameStart = millis();
+    myDebugTick();   // v005
 
     // Serial exit check
     if (Serial.available()) {
       char c = Serial.read();
+      if (myDebugHandleChar(c)) c = 0;   // v005: heartbeat chars D / d
       if (c == 't' || c == 'T' || c == 'l' || c == 'L') { myResetMenuState(); return; }
     }
 
@@ -1624,31 +1984,22 @@ void myActionInfer() {
 
       myForwardPass(myInputBuffer);  // fills myFomoMap[NUM_CLASSES][FOMO_CELLS] and myDense_output
 
-      // Find the best class by highest global average confidence (GAP of FOMO map)
+      // Best class by highest global average confidence (GAP of FOMO map). Kept for the serial summary only;
+      // detection no longer depends on it.
       pred = 0;
       for(int i=1; i<NUM_CLASSES; i++) {
         if(myDense_output[i] > myDense_output[pred]) pred = i;
       }
 
-      // Get the FOMO map for the predicted class
-      // predMap[cell] = confidence (0..1) that the object is at that grid cell
-      predMap = myFomoMap + pred * FOMO_CELLS;
+      // v005: centroids for every object class, several objects per class
+#if MY_V015_COMPAT
+      myDetN = myDecodeDetections(myFomoMap, myDets, MY_DET_MAX_TOTAL, pred);   // v015: only the predicted class
+#else
+      myDetN = myDecodeDetections(myFomoMap, myDets, MY_DET_MAX_TOTAL, -1);
+#endif
 
-      // Find the single peak cell (highest confidence) for OLED and serial summary
-      peakCell = 0;
-      peakVal = predMap[0];
-      for(int cell=1; cell<FOMO_CELLS; cell++) {
-        if(predMap[cell] > peakVal) { peakVal = predMap[cell]; peakCell = cell; }
-      }
-      peakGridX = peakCell % FOMO_GRID;   // column in FOMO grid
-      peakGridY = peakCell / FOMO_GRID;   // row    in FOMO grid
-
-      // Compute active threshold once per frame — shared by OLED and serial cluster loops.
-      // Dynamic mode: 90% of the peak cell value, floored so blank scenes don't fire everything.
-      // Fixed mode: use the constant myFomoThreshold.
-      myActiveThreshold = myUseDynamicThreshold
-        ? max(peakVal * myDynamicThresholdRatio, myDynamicThresholdFloor)
-        : myFomoThreshold;
+      // v005: every 10th inference, send a debug frame to the web page (only when the page asked)
+      if (myDebugOn && (++myDebugInferN % 10 == 0)) myDebugFrame('I', true, pred, fb);
 
       // Draw OLED every 10 frames (myRgbBuffer still valid here, before fb_return)
       if (frameIndex == 9) {
@@ -1665,68 +2016,23 @@ void myActionInfer() {
             }
           }
 
-          // --- Cluster high-confidence FOMO cells, draw one bounding box per cluster ---
-          // Cells within myMergeRadius grid steps of an existing cluster centre merge in.
-          // Up to 10 clusters supported; extras are silently dropped.
-          struct MyCluster { int minX, minY, maxX, maxY; float maxVal; };
-          MyCluster myClusters[10];
-          int myClusterCount = 0;
-          const int myMergeRadius = 6;  // tune: smaller = split more, larger = merge more
-
-          for(int cell=0; cell<FOMO_CELLS; cell++) {
-            if(predMap[cell] < myActiveThreshold) continue;
-            int gx = cell % FOMO_GRID;
-            int gy = cell / FOMO_GRID;
-
-            // Find the nearest existing cluster centre
-            int nearest = -1;
-            for(int c=0; c<myClusterCount; c++) {
-              int cx = (myClusters[c].minX + myClusters[c].maxX) / 2;
-              int cy = (myClusters[c].minY + myClusters[c].maxY) / 2;
-              if(abs(gx-cx) <= myMergeRadius && abs(gy-cy) <= myMergeRadius) {
-                nearest = c; break;
-              }
-            }
-            if(nearest >= 0) {
-              // Expand existing cluster bounds
-              myClusters[nearest].minX = min(myClusters[nearest].minX, gx);
-              myClusters[nearest].minY = min(myClusters[nearest].minY, gy);
-              myClusters[nearest].maxX = max(myClusters[nearest].maxX, gx);
-              myClusters[nearest].maxY = max(myClusters[nearest].maxY, gy);
-              myClusters[nearest].maxVal = max(myClusters[nearest].maxVal, predMap[cell]);
-            } else if(myClusterCount < 10) {
-              myClusters[myClusterCount++] = {gx, gy, gx, gy, predMap[cell]};
-            }
-          }
-
-          // Draw one bounding rectangle per cluster
-          for(int c=0; c<myClusterCount; c++) {
-            int rx1 = (int)(myClusters[c].minX * oW / FOMO_GRID);
-            int ry1 = (int)(myClusters[c].minY * oH / FOMO_GRID);
-            int rx2 = (int)((myClusters[c].maxX + 1) * oW / FOMO_GRID);
-            int ry2 = (int)((myClusters[c].maxY + 1) * oH / FOMO_GRID);
-            u8g2.setColorIndex(0);   
-            u8g2.drawFrame(rx1+1, ry1+1, rx2 - rx1-1, ry2 - ry1-1);   // smaller black rectangle         
+          // --- v005: one box per blob (cell bounds) and a small cross on its weighted centroid ---
+          for (int d = 0; d < myDetN; d++) {
+            int rx1 = (int)(myDets[d].minX * oW / FOMO_GRID);
+            int ry1 = (int)(myDets[d].minY * oH / FOMO_GRID);
+            int rx2 = (int)((myDets[d].maxX + 1) * oW / FOMO_GRID);
+            int ry2 = (int)((myDets[d].maxY + 1) * oH / FOMO_GRID);
+            u8g2.setColorIndex(0);
+            u8g2.drawFrame(rx1+1, ry1+1, rx2 - rx1-1, ry2 - ry1-1);   // smaller black rectangle
             u8g2.setColorIndex(1);
             u8g2.drawFrame(rx1, ry1, rx2 - rx1, ry2 - ry1);           // bounding white rectangle
+            int cxo = (int)((myDets[d].cx + 0.5f) * oW / FOMO_GRID), cyo = (int)((myDets[d].cy + 0.5f) * oH / FOMO_GRID);
+            u8g2.setColorIndex(0);
+            u8g2.drawHLine(cxo - 2, cyo - 1, 5); u8g2.drawHLine(cxo - 2, cyo + 1, 5);
+            u8g2.drawVLine(cxo - 1, cyo - 2, 5); u8g2.drawVLine(cxo + 1, cyo - 2, 5);
+            u8g2.setColorIndex(1);
+            u8g2.drawHLine(cxo - 2, cyo, 5); u8g2.drawVLine(cxo, cyo - 2, 5);
           }
-
-          // --- Label bar at bottom ---
-          // Show class name and cluster count only (confidence shown on serial, not redundant here)
-          // removed for simplicity
-          /*
-          u8g2.setFont(u8g2_font_5x7_tf);
-          u8g2.setColorIndex(0);
-          u8g2.drawBox(0, oH - 9, oW, 9);
-          u8g2.setColorIndex(1);
-          char buf[24];
-          snprintf(buf, sizeof(buf), "%s n=%d",
-                   myClassLabels[pred].c_str(),
-                   myClusterCount);
-          u8g2.drawStr(1, oH - 1, buf);
-
-          */
-
         } while (u8g2.nextPage());
       }
     }
@@ -1737,67 +2043,23 @@ void myActionInfer() {
     frameTimes[frameIndex] = millis() - frameStart;
     float fps = 1000.0f / frameTimes[frameIndex];
 
-    // Summary line: frame timing, predicted class, peak cell location
+    // Summary line: frame timing and predicted class (average map), then the average map of every class
     Serial.printf("F%d: %lums (%.1fFPS) pred=%s(%.0f%%)",
                   frameIndex+1, frameTimes[frameIndex], fps,
                   myClassLabels[pred].c_str(), myDense_output[pred]*100);
-    Serial.printf(" peak=(%d,%d)@%.2f, @%.2f", peakGridX, peakGridY, peakVal,myActiveThreshold);
-
-    // All-class confidence summary
     Serial.print(" | ");
     for(int i=0; i<NUM_CLASSES; i++) {
       Serial.printf(" %s=%.0f%%", myClassLabels[i].c_str(), myDense_output[i]*100);
     }
 
-
-
-
-
-// Cluster-based serial output — one line per frame showing each detected object
-    // Total cluster count shown; each cluster reports its centroid and peak confidence.
-    // myClusters/myClusterCount computed inside the OLED block every 10 frames;
-    // on non-OLED frames recompute here for accurate per-frame serial output.
-    struct MyClusterS { int minX, minY, maxX, maxY; float maxVal; };
-    MyClusterS mySerClusters[10];
-    int mySerClusterCount = 0;
-    const int mySerMergeRadius = 6;
-
-    for(int cell=0; cell<FOMO_CELLS; cell++) {
-      if(predMap[cell] < myActiveThreshold) continue;
-      int gx = cell % FOMO_GRID;
-      int gy = cell / FOMO_GRID;
-      int nearest = -1;
-      for(int c=0; c<mySerClusterCount; c++) {
-        int cx = (mySerClusters[c].minX + mySerClusters[c].maxX) / 2;
-        int cy = (mySerClusters[c].minY + mySerClusters[c].maxY) / 2;
-        if(abs(gx-cx) <= mySerMergeRadius && abs(gy-cy) <= mySerMergeRadius) {
-          nearest = c; break;
-        }
-      }
-      if(nearest >= 0) {
-        mySerClusters[nearest].minX = min(mySerClusters[nearest].minX, gx);
-        mySerClusters[nearest].minY = min(mySerClusters[nearest].minY, gy);
-        mySerClusters[nearest].maxX = max(mySerClusters[nearest].maxX, gx);
-        mySerClusters[nearest].maxY = max(mySerClusters[nearest].maxY, gy);
-        mySerClusters[nearest].maxVal = max(mySerClusters[nearest].maxVal, predMap[cell]);
-      } else if(mySerClusterCount < 10) {
-        mySerClusters[mySerClusterCount++] = {gx, gy, gx, gy, predMap[cell]};
-      }
+    // v005: the FOMO output. x,y = weighted centroid in the 240x240 model frame, @ = peak cell value, n = cells in the blob
+    Serial.printf(" | Objects(%d):", myDetN);
+    for (int d = 0; d < myDetN; d++) {
+      Serial.printf(" [%s x=%d y=%d @%.2f n=%d]", myClassLabels[myDets[d].cls].c_str(),
+                    myDetPx(myDets[d].cx), myDetPx(myDets[d].cy), myDets[d].conf, myDets[d].cells);
     }
-
-    Serial.printf(" | Clusters(%d):", mySerClusterCount);
-    for(int c=0; c<mySerClusterCount; c++) {
-      int cx = (mySerClusters[c].minX + mySerClusters[c].maxX) / 2;
-      int cy = (mySerClusters[c].minY + mySerClusters[c].maxY) / 2;
-      Serial.printf(" [%d,%d]@%.2f", cx, cy, mySerClusters[c].maxVal);
-    }
-    if(mySerClusterCount == 0) Serial.print(" none");
+    if (myDetN == 0) Serial.print(" none");
     Serial.println();
-
-
-
-
-
 
     frameIndex++;
     if (frameIndex >= 10) {
@@ -1868,6 +2130,7 @@ void myHandleMenuNavigation() {
 
   if (!myIsSelected && Serial.available()) {
     char c = Serial.read();
+    if (myDebugHandleChar(c)) c = 0;   // v005: heartbeat chars D / d
     if (c >= '1' && c <= '9') {
       int newIndex = c - '0';
       if (newIndex <= myTotalItems) {
