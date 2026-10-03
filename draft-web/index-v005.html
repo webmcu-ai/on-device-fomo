@@ -1,0 +1,1476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>index-v005 — FOMO object detection SD-card trainer (pairs with firmware-v005)</title>
+<style>
+:root{--bg:#10141a;--card:#1a212b;--line:#2c3746;--tx:#e6edf5;--mu:#93a1b3;--ac:#4ea1ff;--ok:#3ecf8e;--bad:#ff6b6b;--warn:#f5b84b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:14px 18px;border-bottom:1px solid var(--line)}
+header h1{margin:0;font-size:20px} header p{margin:4px 0 0;color:var(--mu);font-size:13px}
+main{max-width:1200px;margin:0 auto;padding:12px 14px 80px}
+section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin:14px 0}
+section h2{margin:0 0 10px;font-size:17px}
+h3{margin:14px 0 6px;font-size:14px;color:var(--mu);font-weight:600}
+button,select,input{font:inherit;color:var(--tx);background:#232d3a;border:1px solid var(--line);border-radius:8px;padding:9px 13px;min-height:40px}
+button{cursor:pointer} button:hover:not(:disabled){border-color:var(--ac)} button:disabled{opacity:.45;cursor:default}
+button.pri{background:var(--ac);color:#04121f;border-color:var(--ac);font-weight:600}
+button.dng{border-color:var(--bad);color:var(--bad)}
+input[type=number]{width:84px} input[type=text]{width:170px} input[type=checkbox]{min-height:0;width:18px;height:18px;vertical-align:middle}
+label{margin-right:12px;white-space:nowrap}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0}
+.mu{color:var(--mu);font-size:13px} .warn{color:var(--warn)} .bad{color:var(--bad)} .ok{color:var(--ok)}
+table{border-collapse:collapse;width:100%;font-size:14px} th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left} th{color:var(--mu);font-weight:600}
+pre,textarea{width:100%;background:#0c1016;color:#cfe0f3;border:1px solid var(--line);border-radius:8px;padding:8px;font:12.5px/1.4 ui-monospace,Consolas,monospace}
+pre{white-space:pre-wrap;margin:6px 0;max-height:240px;overflow:auto}
+textarea{height:150px;resize:vertical}
+canvas{background:#000;border-radius:6px}
+.px{image-rendering:pixelated;image-rendering:crisp-edges}
+.pair{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start}
+.cap{font-size:12px;color:var(--mu);margin-top:3px;max-width:240px}
+.wrap{position:relative;display:inline-block}
+.rec{position:absolute;top:8px;left:8px;background:#e11;color:#fff;font-weight:700;padding:2px 8px;border-radius:4px;display:none;font-size:13px}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;border-radius:6px}
+details{margin:6px 0;border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+summary{cursor:pointer}
+.thumbs{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.th{position:relative;cursor:pointer} .th img{width:96px;height:96px;object-fit:cover;border-radius:4px;display:block;transform:scaleX(-1)}
+.th span{position:absolute;right:2px;bottom:2px;background:#000a;font-size:11px;padding:0 4px;border-radius:3px}
+.bar{height:12px;background:#0c1016;border-radius:6px;overflow:hidden;min-width:140px}.bar i{display:block;height:100%;background:var(--ac)}
+#banner{font-size:20px;font-weight:700;margin:6px 0}
+#ws{position:fixed;inset:0;background:var(--bg);display:none;z-index:50;flex-direction:column}
+#wsTop{padding:8px 12px;border-bottom:1px solid var(--line);margin:0;background:var(--card)}
+#wsBody{flex:1;display:flex;min-height:0}
+#wsList{width:290px;overflow:auto;border-right:1px solid var(--line);font-size:13px}
+#wsMain{flex:1;overflow:auto;padding:10px 14px}
+.wr{padding:3px 8px;border-bottom:1px solid #222c38;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wr:hover{background:#1d2733}.wr.cur{background:#1d3a57;font-weight:600}.wr.wait{color:var(--warn)}.wr.mk{text-decoration:line-through;color:var(--bad)}.wr .t{display:inline-block;width:1.4em}
+.gal{display:flex;flex-wrap:wrap;gap:6px}
+.chip{min-height:32px;padding:4px 10px;border-radius:16px}.chip.on{border-color:var(--ac);background:#1d3a57}
+table.mx td,table.mx th{text-align:center;padding:6px 10px}table.mx td.c{cursor:pointer}table.mx td.c:hover{outline:2px solid var(--ac)}
+.dtab td,.dtab th{padding:3px 6px;font-size:13px}
+.help{background:#16324d;border:1px solid var(--ac);padding:8px 10px;border-radius:8px;margin:8px 0;font-size:14px}
+.strip{display:flex;flex-wrap:wrap;gap:3px;max-height:86px;overflow:auto;margin:8px 0;position:relative}
+.strip button{min-height:0;padding:2px 7px;font-size:12px;border-radius:5px}
+.strip .done{background:#1f5a3f}.strip .cur{outline:2px solid var(--ac)}.strip .mk{background:#6a2a2a}
+#vBoxes{margin:8px 0;font-size:13px} #vBoxes button{min-height:26px;padding:0 8px;margin-left:6px}
+</style>
+</head>
+<body>
+<header>
+<h1>index-v005 — FOMO object detection trainer for the XIAO ESP32-S3 ML Kit</h1>
+<p>Pairs with <b>firmware-v005.ino</b>. Label boxes, train the same 2-conv + 1x1 FOMO head in plain JS, read out centroids for several objects, check them with confusion matrices, write <code>myWeights.bin</code> back to the card. Single file, no network.</p>
+</header>
+<main>
+
+<section id="s1"><h2>1 · Data source</h2>
+<div class="row">
+<button id="pickBtn" class="pri">Pick SD folder</button>
+<button id="zipBtn">Load .zip</button><input type="file" id="zipFile" accept=".zip" hidden>
+<span class="mu" id="fsNote"></span></div>
+<pre id="summary">Nothing loaded yet. Pick the SD card root (it contains <i>images/</i> and <i>header/</i>) or load a zip of it. Desktop Chrome or Edge can read and write the card directly.</pre>
+</section>
+
+<section id="s2"><h2>2 · Classes and data</h2>
+<p class="mu"><b>Class 0 = "no object" images</b> (negative scenes; the firmware gives them no boxes and never decodes them). Classes 1.. are objects. Inside an object image everything outside the box is already trained as empty. Pictures are shown as the model sees them (the firmware flips the stored JPEG horizontally); <code>annotations.json</code> is saved in the stored-JPEG frame, exactly like your FOMO Annotator, and firmware-v005 mirrors the boxes when it trains. An object image with no box is trained on the default centred box (35%–65%).</p>
+<table id="clsTable"><thead><tr><th>#</th><th>Class folder</th><th>Role</th><th>Images</th><th>Boxes</th><th>Train / Val</th><th></th></tr></thead><tbody></tbody></table>
+<div class="row"><input type="text" id="newClass" placeholder="2Bottle"><button id="addClass">Add class</button><span class="mu">letters, digits, _ and - only; keep the numeric prefix so folder order = class order</span></div>
+<h3>Paste into the sketch (compile-time)</h3>
+<pre id="fwLines"></pre>
+
+<h3>Capture from webcam</h3>
+<div class="row">
+<button id="camBtn">Start camera</button>
+<label>Class <select id="capClass"></select></label>
+<button id="capBtn" class="pri">Capture (Space)</button>
+<button id="burstBtn">Burst 10 (B)</button>
+<label>delay ms <input type="number" id="burstDelay" value="0" min="0" max="2000"></label>
+<label><input type="checkbox" id="hmirror"> hmirror</label>
+<label><input type="checkbox" id="vflip"> vflip</label>
+<span class="mu" id="capMsg"></span></div>
+<p class="mu">hmirror / vflip are off by default (the firmware sets both to 1 on the ESP32 sensor, because that camera module is mounted upside down). Tick them only if page images and device images should be flipped to look alike; that needs a bench check with the same scene.</p>
+<div class="pair">
+<div><div class="wrap"><canvas id="capView" width="240" height="240" style="width:240px;height:240px"></canvas><div class="rec" id="rec">● REC</div><div class="flash" id="flash"></div></div><div class="cap">camera as the device would store it, shown in model orientation (JPEG round trip)</div></div>
+<div><canvas id="capModel" class="px"></canvas><div class="cap" id="capModelCap"></div></div>
+</div>
+<video id="cam" playsinline muted style="display:none"></video>
+
+<h3>Image workspace: label, review, jump to any image</h3>
+<div class="row"><span id="queueMsg"></span></div>
+<div class="row"><button id="wsOpen" class="pri">Open image workspace</button><button id="wsWaiting">Label waiting images</button>
+<label><input type="checkbox" id="autoLabel" checked> open the workspace after each burst</label>
+<button id="mirrorAll" title="Only for boxes drawn with index.v002/v003, which saved the model frame">Mirror all boxes horizontally</button></div>
+<p class="mu">The workspace lists <b>every image</b> on the left: click one, type a number or a name, press Home/End or Page Up/Down, or filter by class, waiting for a box, missed or false detections. Drag a box, <b>Enter</b> = next, <b>C</b> = centre box, <b>Z</b> = undo, <b>X</b> = mark bad. Boxes auto-save to <code>annotations.json</code> like your annotator (a <code>.bak</code> is made first, once per class per session; switch it off in the workspace). The mirror button is only for boxes made with the old index.v002/v003 pages.</p>
+<div id="browser"></div>
+</section>
+
+<section id="s3"><h2>3 · Train</h2>
+<h3>Model layout (compile-time in the firmware)</h3>
+<div class="row">
+<label>INPUT_SIZE <input type="number" id="inN" value="64" min="8" max="128" step="2"></label>
+<label>CONV1_FILTERS <input type="number" id="inC1" value="4" min="1" max="16"></label>
+<label>CONV2_FILTERS <input type="number" id="inC2" value="8" min="1" max="32"></label>
+<span class="mu" id="layMsg"></span></div>
+<pre id="layInfo"></pre>
+<p class="mu">Changing the layout discards the model in memory and redraws every model input view; it never touches files on the card. The kernel stays 3x3 because the firmware loops hard-code it.</p>
+<h3>Training settings</h3>
+<div class="row">
+<label>learning rate <input type="number" id="lr" value="0.0003" step="0.0001" min="0.00001"></label>
+<label>batch <input type="number" id="batch" value="12" min="1" max="64"></label>
+<label>epochs <input type="number" id="epochs" value="30" min="1" max="500"></label>
+<label>validation <select id="valMode"><option value="last">last N per class (firmware rule)</option><option value="pct">percent of smallest class</option></select></label>
+<label>N / % <input type="number" id="valN" value="5" min="0" max="100"></label></div>
+<div class="row"><label><input type="checkbox" id="aug" checked> random-crop augmentation (browser-only toggle; firmware has <code>USE_AUGMENTATION 1</code>)</label>
+<label>crop min <input type="number" id="cmin" value="160" min="40" max="240"></label><label>crop max <input type="number" id="cmax" value="220" min="40" max="240"></label></div>
+<div class="row"><button id="trainBtn" class="pri">Train</button><button id="pauseBtn" disabled>Pause</button><button id="stopBtn" class="dng" disabled>STOP</button><button id="resetBtn">New random model</button></div>
+<p class="mu">STOP keeps the current model in memory and does not save. Risks: near-duplicate burst images inflate validation numbers; web file names (<code>web_…</code>) sort after device names (<code>img_…</code>), so "last N by name" can hold out web images only. A class with N or fewer images is held out completely (firmware rule).</p>
+<div id="trainMsg" class="mu">No model yet.</div>
+<div class="row"><canvas id="chLoss" width="480" height="180" style="width:480px;height:180px"></canvas><canvas id="chAcc" width="480" height="180" style="width:480px;height:180px"></canvas></div>
+<p class="mu">Left: training loss and validation loss. Right: validation detection F1 (centroid matching, see Analyze) and the firmware's own accuracy (average map argmax over all classes, which says little for the blank class).</p>
+</section>
+
+<section id="s4"><h2>4 · Analyze</h2>
+<pre id="modelInfo">No model.</pre>
+<div class="row">
+<label>evaluate on <select id="evalSet"><option value="val">validation set</option><option value="all">all samples (finds bad labels)</option></select></label>
+<label>match radius (cells) <input type="number" id="matchR" value="3" min="0.5" max="20" step="0.5"></label>
+<button id="evalBtn" class="pri">Update evaluation</button></div>
+<div class="row">
+<label>detection threshold <input type="range" id="thr" min="0.05" max="0.95" step="0.01" value="0.38" style="width:200px"> <b id="thrV">0.38</b></label>
+<label>relative <input type="number" id="pRel" value="0.50" step="0.05" min="0" max="1" title="a cell must also reach this fraction of the class peak in the frame (firmware v015 used 0.90)"></label>
+<label>min cells <input type="number" id="pMin" value="1" min="1" max="50"></label>
+<label>max per class <input type="number" id="pMax" value="8" min="1" max="8"></label>
+<button id="bestThr">Set threshold to best F1</button></div>
+<canvas id="hist" width="900" height="200" style="width:100%;max-width:900px;background:#0b0f14;border:1px solid var(--line);border-radius:7px"></canvas>
+<div class="mu">Bars: highest object-cell value per image. <span style="color:#5aa2ff">object images (trained on)</span>, <span style="color:#4cc38a">object images (held out)</span>, <span style="color:#e5534b">blank images (no object)</span>. The line is the threshold; blank images above it are false alarms, object images below it are misses. The sliders re-evaluate instantly from the stored network outputs.</div>
+<pre id="evalInfo"></pre>
+<h3>Confusion matrix 1: images <span class="mu">(rows = what the image really is, columns = class of the strongest detection; position is not checked)</span></h3>
+<div id="mxImg"></div>
+<h3>Confusion matrix 2: detected objects <span class="mu">(each predicted blob is matched to the nearest labeled object within the radius; click a cell to see its images)</span></h3>
+<div id="mxDet"></div>
+<h3>Per class</h3><div id="clsStat"></div>
+<div id="evalWarn" class="warn"></div>
+<h3>Cases to check</h3>
+<div class="row"><button class="chip" data-case="missed">Missed objects</button><button class="chip" data-case="false">False alarms</button><button class="chip" data-case="wrong">Wrong class</button><button class="chip" data-case="low">Weakest object images</button><button class="chip" data-case="high">Strongest blank images</button><span class="mu" id="caseTitle"></span></div>
+<div class="gal" id="gallery"></div>
+<div class="row"><label>Parity sample <select id="parSel" style="max-width:360px"></select></label><button id="parBtn">Parity self-test</button></div><pre id="parOut" style="display:none"></pre>
+</section>
+
+<section id="s5"><h2>5 · Infer (live)</h2>
+<div class="row"><button id="liveBtn" class="pri">Start live inference</button>
+<label>heatmap <select id="liveOv"></select></label><label><input type="checkbox" id="liveDet" checked> detections</label><span class="mu" id="liveMsg">needs the camera (section 2) and a model; thresholds come from section 4</span></div>
+<div id="banner">—</div>
+<div class="pair">
+<div><canvas id="liveView" width="240" height="240" style="width:360px;height:360px;max-width:100%"></canvas><div class="cap">live frame (model orientation), map overlay, box + centroid cross per object</div></div>
+<div><canvas id="liveModel" class="px"></canvas><div class="cap" id="liveModelCap"></div></div>
+<div style="min-width:300px"><div id="liveDets"></div><div id="liveBars"></div></div>
+</div>
+</section>
+
+<section id="s6"><h2>6 · Save</h2>
+<div class="row"><button id="saveW" class="pri">Save weights to header/ (+ .bak)</button>
+<button id="saveCfg">Write config.json only</button>
+<button id="saveAnn">Save annotations.json files</button></div>
+<div class="row"><button id="saveZip">Save .zip</button><label><input type="checkbox" id="zipImg" checked> include images</label></div>
+<p class="mu" id="saveMsg">Auto-save is off. Existing weights are copied to <code>myWeights.bin.bak</code> first. Without folder access the files download instead.</p>
+</section>
+
+<section id="s7"><h2>7 · Console</h2><textarea id="console" readonly></textarea></section>
+
+<section id="s8"><h2>8 · Serial monitor (Web Serial)</h2>
+<p class="mu">Chrome or Edge only. Close the Arduino IDE monitor first. Opening the port can reboot the board. 115200 baud (the firmware's rate).</p>
+<div class="row"><button id="serBtn">Connect</button><button id="serDis" disabled>Disconnect</button>
+<label><input type="checkbox" id="serDbg" checked> ask the device for debug frames</label></div>
+<textarea id="serOut" readonly></textarea>
+<div class="row"><input type="text" id="serIn" style="flex:1;min-width:200px" placeholder="send text (newline appended)"><button id="serSend">Send</button></div>
+<h3>Device view</h3>
+<div class="pair">
+<div><canvas id="devView" width="240" height="240" style="width:300px;height:300px"></canvas><div class="cap">live ESP32 image (model orientation) with the device's FOMO map</div></div>
+<div><canvas id="devModel" class="px"></canvas><div class="cap" id="devModelCap"></div></div>
+<div><label>map class <select id="devOv"></select></label><div id="devDets"></div><pre id="devInfo" style="min-width:300px">Waiting for a frame.</pre></div>
+</div>
+</section>
+</main>
+
+<div id="ws">
+<div class="row" id="wsTop">
+<b>Image workspace</b>
+<label>show <select id="wsFilter"></select></label>
+<label>sort <select id="wsSort"><option value="name">name</option><option value="susp">suspicious first</option><option value="order">capture order</option></select></label>
+<input type="text" id="wsSearch" placeholder="name contains…" style="width:150px">
+<label>go to # <input type="number" id="wsGo" min="1" style="width:78px"></label>
+<span class="mu" id="wsCount"></span><span style="flex:1"></span><span id="wsSaved" class="ok"></span>
+<label><input type="checkbox" id="autoSave" checked> auto-save boxes</label>
+<button id="wsClose">Close (Esc)</button></div>
+<div id="wsBody">
+<div id="wsList"></div>
+<div id="wsMain">
+<div class="help" id="wsHelp">Drag on the picture to draw a box around the object (a plain click drops a standard box). <b>Enter / Space / →</b> next, <b>←</b> previous, <b>Page Up/Down</b> ±10, <b>Home/End</b>, <b>N</b> next waiting for a box, <b>C</b> centre box, <b>Z</b> undo last box, <b>X</b> mark bad, <b>/</b> search, <b>G</b> go to #.</div>
+<div class="pair">
+<div><canvas id="wsBig" width="480" height="480" style="width:480px;height:480px;max-width:100%;cursor:crosshair;touch-action:none"></canvas><div class="mu" id="wsSize"></div></div>
+<div style="flex:1;min-width:280px">
+<canvas id="wsModel" class="px"></canvas><div class="cap" id="wsModelCap"></div>
+<div class="row"><label><input type="checkbox" id="wsAtModel"> Show at model resolution</label></div>
+<div class="row"><label>overlay <select id="wsOv"></select></label><label><input type="checkbox" id="wsLab" checked> boxes</label><label><input type="checkbox" id="wsDet" checked> detections</label></div>
+<div id="wsDets"></div><div id="wsBoxes"></div>
+<pre id="wsInfo" style="max-height:170px"></pre>
+</div></div>
+<div class="row" id="wsBar">
+<button id="wsPrev">← Prev</button><button id="wsNext" class="pri">Next → (Enter)</button><button id="wsNextWait">Next waiting (N)</button>
+<button id="wsCentre">Centre box (C)</button><button id="wsUndo">Undo (Z)</button><button id="wsClear">Clear boxes</button>
+<label><input type="checkbox" id="wsAuto" checked> next image after drawing a box</label></div>
+<div class="row"><button id="wsMark">Mark bad (X)</button><button id="wsDelMarked" class="dng">Delete marked (0)</button>
+<select id="wsMoveSel"></select><button id="wsMove">Move to class</button><button id="wsDelete" class="dng">Delete image</button><button id="wsSaveNow">Save annotations now</button></div>
+</div></div></div>
+<script>
+/* ==CORE START== */
+// Everything here has no DOM use. It mirrors firmware-v002.ino line by line (see comments).
+const PK = ['c1w','c1b','c2w','c2b','ow','ob'];                 // weight file order
+const DEFAULT_BOX = {x1:Math.fround(0.35), y1:Math.fround(0.35), x2:Math.fround(0.65), y2:Math.fround(0.65)}; // myDefaultBox
+
+/* ---------- layout (all compile-time #defines in the firmware) ---------- */
+function mkLayout(N, c1, c2, C){
+  const L = {N, c1, c2, C, err:null};
+  L.c1o = N-2; L.p1 = L.c1o>>1; L.c2o = L.p1-2; L.G = L.c2o; L.cells = L.G*L.G;
+  if (![N,c1,c2,C].every(Number.isInteger)) L.err = 'layout values must be whole numbers';
+  else if (N%2) L.err = 'INPUT_SIZE must be even (2x2 pool)';
+  else if (L.c2o < 1) L.err = 'INPUT_SIZE too small: conv2 output must be at least 1x1 (use 8 or more)';
+  else if (N>128 || c1<1 || c1>16 || c2<1 || c2>32 || C<2 || C>12) L.err = 'out of range (INPUT_SIZE 8-128, CONV1 1-16, CONV2 1-32, classes 2-12)';
+  L.nC1W = 27*c1; L.nC2W = 9*c1*c2; L.flat = L.cells*c2; L.nOW = L.flat*C;   // CONV1_WEIGHTS, CONV2_WEIGHTS, OUTPUT_WEIGHTS
+  L.floats = L.nC1W + c1 + L.nC2W + c2 + L.nOW + C; L.bytes = L.floats*4;      // WEIGHT_FLOATS / WEIGHT_BYTES
+  L.used = L.nC1W + c1 + L.nC2W + c2 + C*c2 + C;                               // floats actually trained/used
+  return L;
+}
+function usedLen(L,k){ return k==='ow' ? L.C*L.c2 : L[{c1w:'nC1W',c1b:'c1',c2w:'nC2W',c2b:'c2',ob:'C'}[k]]; }
+function findLayouts(nBytes, C){
+  const out = [];
+  for (let N=8; N<=128; N+=2) for (let a=1;a<=16;a++) for (let b=1;b<=32;b++){
+    const L = mkLayout(N,a,b,C); if (!L.err && L.bytes===nBytes) out.push(L);
+  }
+  return out;
+}
+
+/* ---------- model ---------- */
+function newModel(L, T){
+  T = T || Float32Array;
+  const m = {L, T, c1w:new T(L.nC1W), c1b:new T(L.c1), c2w:new T(L.nC2W), c2b:new T(L.c2), ow:new T(L.nOW), ob:new T(L.C)};
+  const u = (arr,std)=>{ for (let i=0;i<arr.length;i++) arr[i] = (Math.random()-0.5)*2*std; };   // same uniform init as firmware
+  u(m.c1w, Math.sqrt(2/27)); u(m.c2w, Math.sqrt(2/(9*L.c1))); u(m.ow, Math.sqrt(2/L.c2));      // biases stay 0
+  m.adam = newAdam(m);
+  return m;
+}
+function newAdam(m){ const a={}; for (const k of PK) a[k] = {m:new m.T(m[k].length), v:new m.T(m[k].length)}; return a; }
+function newWS(L, T){
+  T = T || Float32Array;
+  const g = {}; for (const k of ['c1w','c1b','c2w','c2b','ow','ob']) g[k] = new T({c1w:L.nC1W,c1b:L.c1,c2w:L.nC2W,c2b:L.c2,ow:L.nOW,ob:L.C}[k]);
+  return {c1o:new T(L.c1*L.c1o*L.c1o), p1:new T(L.c1*L.p1*L.p1), c2o:new T(L.c2*L.cells), fomo:new T(L.C*L.cells), dense:new T(L.C),
+          g2:new T(L.c2*L.cells), gp1:new T(L.c1*L.p1*L.p1), g1:new T(L.c1*L.c1o*L.c1o), g};
+}
+function loadArrays(m, arrays){ for (const k of PK) m[k].set(arrays[k]); m.adam = newAdam(m); }
+function snapshot(m){ const s={w:{},a:{}}; for (const k of PK){ s.w[k]=m[k].slice(); s.a[k]={m:m.adam[k].m.slice(), v:m.adam[k].v.slice()}; } return s; }
+function restore(m, s){ for (const k of PK){ m[k].set(s.w[k]); m.adam[k].m.set(s.a[k].m); m.adam[k].v.set(s.a[k].v); } }
+
+const clip = (v,mn=-100,mx=100)=> !Number.isFinite(v) ? 0 : (v<mn?mn:(v>mx?mx:v));
+const lrelu = x => x>0 ? x : 0.1*x;
+
+/* ---------- forward (myForwardPass) ---------- */
+function forward(m, input, ws){
+  const {N,c1,c2,C,c1o,p1,c2o,cells} = m.L;
+  for (let f=0; f<c1; f++){
+    const ob = f*c1o*c1o;
+    for (let y=0;y<c1o;y++) for (let x=0;x<c1o;x++){
+      let sum = m.c1b[f];
+      for (let ky=0;ky<3;ky++) for (let kx=0;kx<3;kx++){
+        const ip = ((y+ky)*N + (x+kx))*3, wp = f*27 + ky*9 + kx*3;
+        sum += input[ip]*m.c1w[wp] + input[ip+1]*m.c1w[wp+1] + input[ip+2]*m.c1w[wp+2];
+      }
+      ws.c1o[ob + y*c1o + x] = lrelu(clip(sum));
+    }
+  }
+  for (let f=0; f<c1; f++){
+    const ib = f*c1o*c1o, ob = f*p1*p1;
+    for (let y=0;y<p1;y++) for (let x=0;x<p1;x++){
+      const iy=y*2, ix=x*2;
+      let mv = ws.c1o[ib + iy*c1o + ix];
+      mv = Math.max(mv, ws.c1o[ib + iy*c1o + ix+1]);
+      mv = Math.max(mv, ws.c1o[ib + (iy+1)*c1o + ix]);
+      mv = Math.max(mv, ws.c1o[ib + (iy+1)*c1o + ix+1]);
+      ws.p1[ob + y*p1 + x] = mv;
+    }
+  }
+  for (let f=0; f<c2; f++){
+    const ob = f*cells;
+    for (let y=0;y<c2o;y++) for (let x=0;x<c2o;x++){
+      let sum = m.c2b[f];
+      for (let c=0;c<c1;c++){
+        const ib = c*p1*p1;
+        for (let ky=0;ky<3;ky++) for (let kx=0;kx<3;kx++)
+          sum += ws.p1[ib + (y+ky)*p1 + (x+kx)] * m.c2w[f*c1*9 + c*9 + ky*3 + kx];
+      }
+      ws.c2o[ob + y*c2o + x] = lrelu(clip(sum));
+    }
+  }
+  for (let cls=0; cls<C; cls++){
+    for (let cell=0; cell<cells; cell++){
+      let sum = m.ob[cls];
+      for (let f=0; f<c2; f++) sum += ws.c2o[f*cells + cell]*m.ow[cls*c2 + f];
+      ws.fomo[cls*cells + cell] = 1/(1+Math.exp(-clip(sum,-15,15)));
+    }
+    let s=0; for (let cell=0; cell<cells; cell++) s += ws.fomo[cls*cells+cell];
+    ws.dense[cls] = s/cells;
+  }
+}
+function argmax(a){ let p=0; for (let i=1;i<a.length;i++) if (a[i]>a[p]) p=i; return p; }
+function imgLoss(ws, L, tgt, label){            // MSE over the FOMO map, as in myActionTrain
+  let s=0;
+  for (let cls=0; cls<L.C; cls++) for (let cell=0; cell<L.cells; cell++){
+    const d = ws.fomo[cls*L.cells+cell] - (cls===label ? tgt[cell] : 0); s += d*d;
+  }
+  return s/(L.cells*L.C);
+}
+
+/* ---------- backward (myBackwardFomoHead / Conv2 / Pool1 / Conv1). Gradients are SUMMED over the batch ---------- */
+function zeroGrads(ws){ for (const k of PK) ws.g[k].fill(0); }
+function backward(m, ws, input, label, tgt){
+  const {N,c1,c2,C,c1o,p1,c2o,cells} = m.L, g = ws.g;
+  ws.g2.fill(0); ws.gp1.fill(0); ws.g1.fill(0);
+  for (let cls=0; cls<C; cls++) for (let cell=0; cell<cells; cell++){
+    const s = ws.fomo[cls*cells+cell], t = (cls===label) ? tgt[cell] : 0;
+    const dL = 2*((s-t)*(s*(1-s)))/(cells*C);
+    g.ob[cls] += dL;
+    for (let f=0; f<c2; f++){
+      g.ow[cls*c2+f] += dL*ws.c2o[f*cells+cell];
+      ws.g2[f*cells+cell] += dL*m.ow[cls*c2+f];
+    }
+  }
+  for (let i=0;i<c2*cells;i++) ws.g2[i] *= (ws.c2o[i]>0 ? 1 : 0.1);
+  for (let f=0; f<c2; f++){
+    const ob = f*cells;
+    for (let y=0;y<c2o;y++) for (let x=0;x<c2o;x++){
+      const gr = ws.g2[ob + y*c2o + x];
+      g.c2b[f] += gr;
+      for (let c=0;c<c1;c++){
+        const ib = c*p1*p1;
+        for (let ky=0;ky<3;ky++) for (let kx=0;kx<3;kx++){
+          const pi = ib + (y+ky)*p1 + (x+kx), wi = f*c1*9 + c*9 + ky*3 + kx;
+          g.c2w[wi] += gr*ws.p1[pi];
+          ws.gp1[pi] += gr*m.c2w[wi];
+        }
+      }
+    }
+  }
+  for (let f=0; f<c1; f++){            // max-pool backward: every input equal to the max gets the gradient (ties too, as firmware)
+    const ib = f*c1o*c1o, ob = f*p1*p1;
+    for (let y=0;y<p1;y++) for (let x=0;x<p1;x++){
+      const iy=y*2, ix=x*2, pv = ws.p1[ob+y*p1+x], gr = ws.gp1[ob+y*p1+x];
+      if (ws.c1o[ib+iy*c1o+ix]===pv) ws.g1[ib+iy*c1o+ix] += gr;
+      if (ws.c1o[ib+iy*c1o+ix+1]===pv) ws.g1[ib+iy*c1o+ix+1] += gr;
+      if (ws.c1o[ib+(iy+1)*c1o+ix]===pv) ws.g1[ib+(iy+1)*c1o+ix] += gr;
+      if (ws.c1o[ib+(iy+1)*c1o+ix+1]===pv) ws.g1[ib+(iy+1)*c1o+ix+1] += gr;
+    }
+  }
+  for (let i=0;i<c1*c1o*c1o;i++) ws.g1[i] *= (ws.c1o[i]>0 ? 1 : 0.1);
+  for (let f=0; f<c1; f++){
+    const ob = f*c1o*c1o;
+    for (let y=0;y<c1o;y++) for (let x=0;x<c1o;x++){
+      const gr = ws.g1[ob+y*c1o+x];
+      g.c1b[f] += gr;
+      for (let ky=0;ky<3;ky++) for (let kx=0;kx<3;kx++){
+        const ip = ((y+ky)*N+(x+kx))*3, wp = f*27+ky*9+kx*3;
+        g.c1w[wp] += gr*input[ip]; g.c1w[wp+1] += gr*input[ip+1]; g.c1w[wp+2] += gr*input[ip+2];
+      }
+    }
+  }
+}
+
+/* ---------- Adam (myAdamUpdate) + browser-side numerical safety ---------- */
+function adamStep(m, ws, lr, step){
+  const b1=0.9, b2=0.999, eps=1e-6;
+  const lrt = lr*Math.sqrt(1-Math.pow(b2,step))/(1-Math.pow(b1,step));
+  for (const k of PK){
+    const n = usedLen(m.L,k), w=m[k], gg=ws.g[k], mm=m.adam[k].m, vv=m.adam[k].v;
+    for (let i=0;i<n;i++){
+      let gi = gg[i]; if (!Number.isFinite(gi)) gi = 0;            // non-finite gradient -> 0
+      mm[i] = b1*mm[i] + (1-b1)*gi; vv[i] = b2*vv[i] + (1-b2)*gi*gi;
+      let d = lrt*mm[i]/(Math.sqrt(vv[i])+eps);
+      d = d>0.05 ? 0.05 : (d<-0.05 ? -0.05 : d);                   // bound every single update
+      w[i] = clip(w[i]-d, -10, 10);
+    }
+  }
+}
+
+/* ---------- pixels: decode result -> model frame -> tensor ---------- */
+// firmware: myFlipImageHorizontal() after every fmt2rgb888(); nearest sample src = floor((i+0.5)*240/N), clamped
+const SOFT_HFLIP = true;
+function srcIdx(i,N){ const s = Math.floor((i+0.5)*240/N); return s>239 ? 239 : s; }
+function frameFromRGBA(rgba, out){           // 240x240 RGBA (decoded JPEG) -> 240x240 RGB model frame
+  out = out || new Uint8Array(240*240*3);
+  for (let y=0;y<240;y++) for (let x=0;x<240;x++){
+    const s = (y*240 + (SOFT_HFLIP ? 239-x : x))*4, d = (y*240+x)*3;
+    out[d]=rgba[s]; out[d+1]=rgba[s+1]; out[d+2]=rgba[s+2];
+  }
+  return out;
+}
+function toTensor(frame, N, crop, out){      // crop = {x,y,s} like the augmented path, else full frame
+  out = out || new Float32Array(N*N*3);
+  for (let y=0;y<N;y++) for (let x=0;x<N;x++){
+    let sy, sx;
+    if (crop){
+      sy = crop.y + Math.trunc(Math.fround(Math.fround((y+0.5)*crop.s)/N));
+      sx = crop.x + Math.trunc(Math.fround(Math.fround((x+0.5)*crop.s)/N));
+      sy = sy<0?0:(sy>239?239:sy); sx = sx<0?0:(sx>239?239:sx);
+    } else { sy = srcIdx(y,N); sx = srcIdx(x,N); }
+    const s = (sy*240+sx)*3, d = (y*N+x)*3;
+    out[d]=Math.fround(frame[s]/255); out[d+1]=Math.fround(frame[s+1]/255); out[d+2]=Math.fround(frame[s+2]/255);
+  }
+  return out;
+}
+function tensorToRGBA(t, N){                 // the model input view: exactly the tensor, only converted back to 8 bit
+  const o = new Uint8ClampedArray(N*N*4);
+  for (let i=0;i<N*N;i++){ o[i*4]=Math.round(t[i*3]*255); o[i*4+1]=Math.round(t[i*3+1]*255); o[i*4+2]=Math.round(t[i*3+2]*255); o[i*4+3]=255; }
+  return o;
+}
+function itemTensor(item, N){ if (!item.t || item.tN!==N){ item.t = toTensor(item.frame, N); item.tN = N; } return item.t; }
+
+/* ---------- boxes and targets ---------- */
+function itemBoxes(item){ return item.cls===0 ? [] : (item.boxes && item.boxes.length ? item.boxes : [DEFAULT_BOX]); }   // class 0 = background; empty -> default box
+function boxTarget(boxes, G, out){           // myMakeBoxTarget
+  out = out || new Float32Array(G*G); out.fill(0);
+  for (const b of boxes){
+    const f = Math.fround;
+    let gx1=Math.trunc(f(f(b.x1)*G)), gy1=Math.trunc(f(f(b.y1)*G)), gx2=Math.trunc(f(f(b.x2)*G)), gy2=Math.trunc(f(f(b.y2)*G));
+    const cl = v => v<0?0:(v>G-1?G-1:v);
+    gx1=cl(gx1); gy1=cl(gy1); gx2=cl(gx2); gy2=cl(gy2);
+    for (let gy=gy1; gy<=gy2; gy++) for (let gx=gx1; gx<=gx2; gx++) out[gy*G+gx]=1;
+  }
+  return out;
+}
+function augment(frame, boxes, N, cmin, cmax, rnd, out){   // myLoadImageAugmented (USE_AUGMENTATION 1)
+  if (cmax<cmin) cmax=cmin;
+  const cs = cmin + Math.floor(rnd()*(cmax-cmin+1)), mo = 240-cs;
+  const cx = mo>0 ? Math.floor(rnd()*(mo+1)) : 0, cy = mo>0 ? Math.floor(rnd()*(mo+1)) : 0;
+  const ob = [], f = Math.fround;
+  for (const b of boxes){
+    const px1=f(b.x1*240), py1=f(b.y1*240), px2=f(b.x2*240), py2=f(b.y2*240);
+    const k=(v,lo,hi)=> v<lo?lo:(v>hi?hi:v);
+    const x1=k(px1,cx,cx+cs), y1=k(py1,cy,cy+cs), x2=k(px2,cx,cx+cs), y2=k(py2,cy,cy+cs);
+    if (x2-x1<1 || y2-y1<1) continue;
+    ob.push({x1:f((x1-cx)/cs), y1:f((y1-cy)/cs), x2:f((x2-cx)/cs), y2:f((y2-cy)/cs)});
+  }
+  return {input: toTensor(frame, N, {x:cx,y:cy,s:cs}, out), boxes: ob};
+}
+
+/* ---------- FOMO decode: the same algorithm as myDecodeDetections in firmware-v005 ---------- */
+// per object class k>=1: cells >= max(thr, rel*peak) are grouped into 8-connected blobs (row-major scan, at most 16 blobs
+// considered); centroid = activation-weighted mean of cell indices (cell i has its centre at i+0.5 of the grid).
+const DEFAULT_PARAMS = {thr:0.38, rel:0.50, minCells:1, maxPer:8};
+const px240 = (c,G) => (c+0.5)*240/G;                 // cell-index centroid -> pixel in the 240x240 model frame
+function decodeClass(map, off, G, P, k){
+  const cells=G*G; let peak=0;
+  for (let c=0;c<cells;c++) if (map[off+c]>peak) peak=map[off+c];
+  if (peak < P.thr) return {peak, dets:[]};
+  const thr=Math.max(P.thr, P.rel*peak), seen=new Uint8Array(cells), stack=new Int32Array(cells), tmp=[];
+  for (let c=0;c<cells && tmp.length<16;c++){
+    if (seen[c] || map[off+c]<thr) continue;
+    let sp=0, sw=0, sx=0, sy=0, mx=0, n=0, x0=G, y0=G, x1=-1, y1=-1; stack[sp++]=c; seen[c]=1;
+    while (sp>0){
+      const q=stack[--sp], gx=q%G, gy=(q/G)|0, v=map[off+q];
+      sw+=v; sx+=v*gx; sy+=v*gy; n++; if (v>mx) mx=v;
+      if (gx<x0) x0=gx; if (gx>x1) x1=gx; if (gy<y0) y0=gy; if (gy>y1) y1=gy;
+      for (let dy=-1;dy<=1;dy++) for (let dx=-1;dx<=1;dx++){
+        const nx=gx+dx, ny=gy+dy; if ((!dx&&!dy)||nx<0||ny<0||nx>=G||ny>=G) continue;
+        const nq=ny*G+nx; if (!seen[nq] && map[off+nq]>=thr){ seen[nq]=1; stack[sp++]=nq; }
+      }
+    }
+    if (n>=P.minCells) tmp.push({cls:k, cx:sx/sw, cy:sy/sw, conf:mx, cells:n, minX:x0, minY:y0, maxX:x1, maxY:y1});
+  }
+  tmp.sort((a,b)=>b.conf-a.conf);                     // stable: strongest first, scan order on ties
+  return {peak, dets:tmp.slice(0,P.maxPer)};
+}
+function decodeSample(fomo, L, P){                    // every object class; class 0 (blank) is never decoded
+  const dets=[], peaks=[0];
+  for (let k=1;k<L.C;k++){ const r=decodeClass(fomo,k*L.cells,L.G,P,k); peaks[k]=r.peak; for (const d of r.dets) dets.push(d); }
+  dets.sort((a,b)=>b.conf-a.conf);
+  return {dets, peaks, peakObj:Math.max(0,...peaks.slice(1))};
+}
+function gtObjects(item, L){                          // ground truth centres in cell-index units
+  return item.cls>0 ? itemBoxes(item).map(b=>({cls:item.cls, cx:(b.x1+b.x2)/2*L.G-0.5, cy:(b.y1+b.y2)/2*L.G-0.5})) : [];
+}
+// Matching rule: class-agnostic, one-to-one, nearest first; a prediction and a ground-truth object match when their
+// centres are within `radius` grid cells. A match with the wrong class is a confusion, an unmatched prediction is a
+// false alarm, an unmatched ground-truth object is a miss.
+function matchGreedy(preds, gts, radius){
+  const pairs=[];
+  preds.forEach((p,i)=>gts.forEach((g,j)=>{ const d=Math.hypot(p.cx-g.cx,p.cy-g.cy); if (d<=radius) pairs.push({i,j,d}); }));
+  pairs.sort((a,b)=>a.d-b.d);
+  const up=new Set(), ug=new Set(), ok=[];
+  for (const p of pairs) if (!up.has(p.i)&&!ug.has(p.j)){ up.add(p.i); ug.add(p.j); ok.push(p); }
+  return {pairs:ok, unP:preds.map((_,i)=>i).filter(i=>!up.has(i)), unG:gts.map((_,j)=>j).filter(j=>!ug.has(j))};
+}
+function forwardEntries(m, ws, items){                // forward passes cached so thresholds can change without re-running the network
+  const L=m.L, out=[];
+  for (const it of items){
+    forward(m, itemTensor(it,L.N), ws);
+    const tgt = it.cls===0 ? new Float32Array(L.cells) : boxTarget(itemBoxes(it), L.G);
+    out.push({item:it, fomo:ws.fomo.slice(), dense:ws.dense.slice(), loss:imgLoss(ws,L,tgt,it.cls), pred:argmax(ws.dense)});
+  }
+  return out;
+}
+// Two confusion matrices.
+//  img: rows = true image class (0 = blank), columns = "none" then the class of the strongest detection (does not check position)
+//  det: rows = ground-truth objects (classes 1..K) + "none", columns = predicted blobs (classes 1..K) + "none"; this is the
+//       usual detection confusion matrix: [gt][pred] matched pairs, [gt][none] misses, [none][pred] false alarms.
+function evaluate(entries, L, P, radius){
+  const K=L.C-1, det=Array.from({length:K+1},()=>new Array(K+1).fill(0)), img=Array.from({length:L.C},()=>new Array(L.C).fill(0));
+  const detS=Array.from({length:K+1},()=>Array.from({length:K+1},()=>[])), imgS=Array.from({length:L.C},()=>Array.from({length:L.C},()=>[]));
+  const per=new Map(), errSum=new Array(K+1).fill(0), errN=new Array(K+1).fill(0); let acc=0, lossSum=0;
+  for (const e of entries){
+    const ds=decodeSample(e.fomo,L,P), gts=gtObjects(e.item,L), mt=matchGreedy(ds.dets,gts,radius), flags={missed:false,falseAlarm:false,wrong:false};
+    for (const p of mt.pairs){ const g=gts[p.j], q=ds.dets[p.i]; det[g.cls-1][q.cls-1]++; detS[g.cls-1][q.cls-1].push(e.item);
+      if (q.cls!==g.cls) flags.wrong=true; else { errSum[g.cls]+=p.d*240/L.G; errN[g.cls]++; } }
+    for (const j of mt.unG){ det[gts[j].cls-1][K]++; detS[gts[j].cls-1][K].push(e.item); flags.missed=true; }
+    for (const i of mt.unP){ det[K][ds.dets[i].cls-1]++; detS[K][ds.dets[i].cls-1].push(e.item); flags.falseAlarm=true; }
+    const col = ds.dets.length ? ds.dets[0].cls : 0; img[e.item.cls][col]++; imgS[e.item.cls][col].push(e.item);
+    if (e.pred===e.item.cls) acc++; lossSum+=e.loss;
+    per.set(e.item,{dets:ds.dets, peaks:ds.peaks, peakObj:ds.peakObj, gts, match:mt, flags, imgCol:col, entry:e});
+  }
+  const cls=[]; let TP=0,FP=0,FN=0;
+  for (let k=1;k<=K;k++){
+    const tp=det[k-1][k-1]; let fn=0, fp=0;
+    for (let c=0;c<=K;c++) if (c!==k-1) fn+=det[k-1][c];
+    for (let r=0;r<=K;r++) if (r!==k-1) fp+=det[r][k-1];
+    const prec=tp+fp?tp/(tp+fp):NaN, rec=tp+fn?tp/(tp+fn):NaN;
+    cls[k]={tp,fp,fn,prec,rec,f1:(prec+rec)?2*prec*rec/(prec+rec):NaN, gt:tp+fn, pred:tp+fp, errPx:errN[k]?errSum[k]/errN[k]:NaN};
+    TP+=tp; FP+=fp; FN+=fn;
+  }
+  const prec=TP+FP?TP/(TP+FP):NaN, rec=TP+FN?TP/(TP+FN):NaN;
+  return {det, img, detS, imgS, per, cls, micro:{tp:TP,fp:FP,fn:FN,prec,rec,f1:(prec+rec)?2*prec*rec/(prec+rec):NaN},
+          n:entries.length, acc:entries.length?acc/entries.length:NaN, loss:entries.length?lossSum/entries.length:NaN};
+}
+function bestThreshold(entries, L, P, radius){        // sweep the absolute threshold for the best micro F1
+  let best={thr:P.thr, f1:-1};
+  for (let t=0.05;t<=0.951;t+=0.02){ const r=evaluate(entries,L,{...P,thr:+t.toFixed(2)},radius).micro.f1; if (Number.isFinite(r) && r>best.f1) best={thr:+t.toFixed(2), f1:r}; }
+  return best;
+}
+
+/* ---------- validation split (firmware: sort by path, hold out the last N per class) ---------- */
+function splitData(items, C, mode, valN, pct){
+  const train=[], val=[], per=[];
+  const byC = Array.from({length:C},()=>[]);
+  for (const it of items) if (it.cls>=0 && it.cls<C) byC[it.cls].push(it);
+  for (const a of byC) a.sort((p,q)=> p.name<q.name ? -1 : (p.name>q.name ? 1 : 0));
+  const minC = Math.min(...byC.map(a=>a.length).filter(n=>n>0), Infinity);
+  byC.forEach((a,c)=>{
+    const n=a.length; let skip=0;
+    if (mode==='pct') skip = n>1 && Number.isFinite(minC) ? Math.min(Math.round(minC*pct/100), n-1) : 0;
+    else skip = Math.min(valN, n);                      // firmware rule: may leave a class with 0 training samples
+    for (let i=0;i<n;i++) (i>=n-skip ? val : train).push(a[i]);
+    per[c] = {n, val:skip, train:n-skip};
+  });
+  return {train, val, per};
+}
+
+/* ---------- training driver ---------- */
+async function trainRun(m, train, val, cfg, hk){
+  // cfg {lr,batch,epochs,aug,cmin,cmax,P,radius}; hk {tick(), idle(), stopped(), paused(), onEpoch(info), onRollback(info), rnd}
+  const L=m.L, ws=newWS(L), tgt=new Float32Array(L.cells), inp=new Float32Array(L.N*L.N*3), vws=newWS(L);
+  const rnd = hk.rnd || Math.random, total=train.length, bpe=Math.ceil(total/cfg.batch);
+  let lr=cfg.lr, rollbacks=0, snap=snapshot(m), e=1; const hist=[];
+  while (e<=cfg.epochs){
+    const idx=[...Array(total).keys()];
+    for (let i=total-1;i>0;i--){ const j=Math.floor(rnd()*(i+1)); [idx[i],idx[j]]=[idx[j],idx[i]]; }
+    let eLoss=0, eN=0, eOk=0, bad=false;
+    for (let b=0;b<bpe;b++){
+      while (hk.paused() && !hk.stopped()) await hk.idle();
+      if (hk.stopped()) return {stopped:true, hist, rollbacks, lr};
+      zeroGrads(ws);
+      const s0=b*cfg.batch, s1=Math.min(s0+cfg.batch,total); let bl=0, ok=0;
+      for (let i=s0;i<s1;i++){
+        const it=train[idx[i]]; let input, boxes;
+        if (cfg.aug){ const r=augment(it.frame, itemBoxes(it), L.N, cfg.cmin, cfg.cmax, rnd, inp); input=r.input; boxes=r.boxes; }
+        else { input=toTensor(it.frame, L.N, null, inp); boxes=itemBoxes(it); }
+        if (it.cls===0 || !boxes.length) tgt.fill(0); else boxTarget(boxes, L.G, tgt);
+        forward(m, input, ws);
+        bl += imgLoss(ws, L, tgt, it.cls);
+        if (argmax(ws.dense)===it.cls) ok++;
+        backward(m, ws, input, it.cls, tgt);
+      }
+      if (!Number.isFinite(bl)){ bad=true; break; }
+      adamStep(m, ws, lr, (e-1)*bpe+b+1);
+      eLoss += bl; eN += s1-s0; eOk += ok;
+      await hk.tick();
+    }
+    if (bad){
+      rollbacks++; restore(m, snap); lr/=2;
+      hk.onRollback && hk.onRollback({epoch:e, rollbacks, lr});
+      if (rollbacks>5) return {aborted:true, hist, rollbacks, lr};
+      continue;
+    }
+    let vLoss=NaN, vF1=NaN, vAcc=NaN;
+    if (val.length){ const ev=evaluate(forwardEntries(m,vws,val), L, cfg.P||DEFAULT_PARAMS, cfg.radius||3); vLoss=ev.loss; vF1=ev.micro.f1; vAcc=ev.acc; }
+    const info={epoch:e, loss:eLoss/Math.max(1,eN), trainAcc:eOk/Math.max(1,eN), valLoss:vLoss, valF1:vF1, valAcc:vAcc, lr};
+    hist.push(info); snap=snapshot(m); hk.onEpoch && hk.onEpoch(info); e++;
+  }
+  return {done:true, hist, rollbacks, lr};
+}
+
+/* ---------- weights file ---------- */
+function allFinite(m){ for (const k of PK){ const a=m[k]; for (let i=0;i<a.length;i++) if (!Number.isFinite(a[i])) return false; } return true; }
+function serializeWeights(m){
+  if (!allFinite(m)) throw new Error('model contains NaN or Infinity; refusing to save');
+  const dv=new DataView(new ArrayBuffer(m.L.bytes)); let o=0;
+  for (const k of PK) for (let i=0;i<m[k].length;i++){ dv.setFloat32(o,m[k][i],true); o+=4; }
+  return new Uint8Array(dv.buffer);
+}
+function parseWeights(bytes, L){
+  if (bytes.length!==L.bytes) return {ok:false, err:`file is ${bytes.length} bytes, current layout needs ${L.bytes}`, fits:findLayouts(bytes.length,L.C)};
+  const dv=new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength), arr={}; let o=0;
+  for (const k of PK){ const n={c1w:L.nC1W,c1b:L.c1,c2w:L.nC2W,c2b:L.c2,ow:L.nOW,ob:L.C}[k]; arr[k]=new Float32Array(n);
+    for (let i=0;i<n;i++){ const v=dv.getFloat32(o,true); o+=4; if (!Number.isFinite(v)) return {ok:false, err:'file contains NaN or Infinity'}; arr[k][i]=v; } }
+  return {ok:true, arrays:arr};
+}
+
+/* ---------- config.json and annotations.json ---------- */
+// annotations.json is stored in the STORED-JPEG frame (what any annotation tool, including the FOMO Annotator, shows).
+// The firmware flips every decoded JPEG horizontally before training, and firmware-v005 mirrors the boxes to match.
+// The page shows the model frame (what the OLED shows), so boxes are mirrored on the way in and out.
+const mirrorBox = b => ({x1:1-b.x2, y1:b.y1, x2:1-b.x1, y2:b.y2});
+function buildConfig(L, classes){
+  return JSON.stringify({tool:'index-v005', classes, input_size:L.N, conv1_filters:L.c1, conv2_filters:L.c2, fomo_grid:L.G, weights_bytes:L.bytes, boxes_frame:'stored'}, null, 2)+'\n';
+}
+function parseConfig(text){
+  const j=JSON.parse(text), r={};
+  if (Array.isArray(j.classes) && j.classes.every(s=>typeof s==='string')) r.classes=j.classes;
+  for (const k of ['input_size','conv1_filters','conv2_filters']) if (Number.isInteger(j[k])) r[k]=j[k];
+  if (typeof j.boxes_frame==='string') r.boxes_frame=j.boxes_frame;
+  return r;
+}
+function buildAnnotations(items){            // { "file.jpg": [{x1,y1,x2,y2}] } fractions of the stored JPEG
+  const o={}, r=v=>Math.round(v*10000)/10000;
+  for (const it of [...items].sort((a,b)=>a.name<b.name?-1:1)) if (it.boxes && it.boxes.length) o[it.name]=it.boxes.map(mirrorBox).map(b=>({x1:r(b.x1),y1:r(b.y1),x2:r(b.x2),y2:r(b.y2)}));
+  return JSON.stringify(o, null, 1)+'\n';
+}
+function parseAnnotations(text){             // returns boxes in the model frame
+  const j=JSON.parse(text), o={};
+  for (const [name,arr] of Object.entries(j)){
+    if (!Array.isArray(arr)) continue;
+    const bs=arr.map(b=>({x1:+b.x1,y1:+b.y1,x2:+b.x2,y2:+b.y2})).filter(b=>[b.x1,b.y1,b.x2,b.y2].every(Number.isFinite) && b.x2>b.x1 && b.y2>b.y1)   // firmware: positive area only
+      .map(b=>({x1:Math.max(0,b.x1),y1:Math.max(0,b.y1),x2:Math.min(1,b.x2),y2:Math.min(1,b.y2)})).map(mirrorBox);
+    if (bs.length) o[name]=bs;
+  }
+  return o;
+}
+
+/* ---------- zip (STORE writer; STORE + DEFLATE reader) ---------- */
+const CRC_T = (()=>{ const t=new Uint32Array(256); for (let n=0;n<256;n++){ let c=n; for (let k=0;k<8;k++) c = c&1 ? 0xEDB88320^(c>>>1) : c>>>1; t[n]=c>>>0; } return t; })();
+function crc32(d){ let c=0xFFFFFFFF; for (let i=0;i<d.length;i++) c = CRC_T[(c^d[i])&255]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }
+function zipStore(entries){                  // entries: {name, data:Uint8Array|null}; names ending in '/' are folders
+  const enc=new TextEncoder(), parts=[], cd=[]; let off=0;
+  const u16=v=>[v&255,(v>>8)&255], u32=v=>[v&255,(v>>>8)&255,(v>>>16)&255,(v>>>24)&255];
+  for (const e of entries){
+    const nm=enc.encode(e.name), d=e.data||new Uint8Array(0), crc=crc32(d);
+    const lh=new Uint8Array([0x50,0x4b,3,4, ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21), ...u32(crc), ...u32(d.length), ...u32(d.length), ...u16(nm.length), ...u16(0)]);
+    parts.push(lh, nm, d);
+    cd.push(new Uint8Array([0x50,0x4b,1,2, ...u16(20), ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21), ...u32(crc), ...u32(d.length), ...u32(d.length), ...u16(nm.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(e.name.endsWith('/')?0x10:0), ...u32(off)]), nm);
+    off += lh.length+nm.length+d.length;
+  }
+  let cdLen=0; for (const p of cd) cdLen+=p.length;
+  const end=new Uint8Array([0x50,0x4b,5,6, 0,0,0,0, ...u16(entries.length), ...u16(entries.length), ...u32(cdLen), ...u32(off), 0,0]);
+  const all=[...parts, ...cd, end]; let tot=0; for (const p of all) tot+=p.length;
+  const out=new Uint8Array(tot); let o=0; for (const p of all){ out.set(p,o); o+=p.length; }
+  return out;
+}
+async function inflateRaw(data){
+  const ds=new DecompressionStream('deflate-raw'), w=ds.writable.getWriter(); w.write(data); w.close();
+  return new Uint8Array(await new Response(ds.readable).arrayBuffer());
+}
+function normZipPath(p){                      // backslashes, __MACOSX, top-level folder tolerance
+  p=p.replace(/\\/g,'/'); if (p.startsWith('__MACOSX/') || p.split('/').pop()==='.DS_Store' || p.split('/').pop().startsWith('._')) return null;
+  const s=p.split('/'), i=s.findIndex(x=>x==='images'||x==='header');
+  return i>0 ? s.slice(i).join('/') : p;
+}
+async function unzip(bytes){
+  const dv=new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength); let e=-1;
+  for (let i=bytes.length-22;i>=Math.max(0,bytes.length-65557);i--) if (dv.getUint32(i,true)===0x06054b50){ e=i; break; }
+  if (e<0) throw new Error('not a zip file (no end-of-central-directory record)');
+  const n=dv.getUint16(e+10,true); let p=dv.getUint32(e+16,true); const out=[], dec=new TextDecoder();
+  for (let i=0;i<n;i++){
+    if (dv.getUint32(p,true)!==0x02014b50) throw new Error('bad central directory');
+    const method=dv.getUint16(p+10,true), csz=dv.getUint32(p+20,true), nl=dv.getUint16(p+28,true), el=dv.getUint16(p+30,true), cl=dv.getUint16(p+32,true), lo=dv.getUint32(p+42,true);
+    const name=dec.decode(bytes.subarray(p+46,p+46+nl)); p+=46+nl+el+cl;
+    if (name.endsWith('/')) continue;
+    const lnl=dv.getUint16(lo+26,true), lel=dv.getUint16(lo+28,true), ds=lo+30+lnl+lel;
+    const raw=bytes.subarray(ds,ds+csz);
+    const data = method===0 ? raw.slice() : (method===8 ? await inflateRaw(raw) : null);
+    if (!data) throw new Error('unsupported zip method '+method+' for '+name);
+    const nn=normZipPath(name); if (nn) out.push({name:nn, data});
+  }
+  return out;
+}
+
+/* ---------- serial frames ---------- */
+function makeSerialParser(onText, onFrame){
+  let buf='';
+  return { push(s){
+    buf+=s; let nl;
+    while ((nl=buf.indexOf('\n'))>=0){
+      let line=buf.slice(0,nl); buf=buf.slice(nl+1); if (line.endsWith('\r')) line=line.slice(0,-1);
+      if (line.startsWith('@')){ try{ onFrame(line); }catch(err){} } else onText(line+'\n');
+    }
+    if (buf.length>400000) buf='';                       // never grow without bound
+    if (buf && !buf.startsWith('@')){ onText(buf); buf=''; }   // hold a partial line back only if it starts with '@'
+  }};
+}
+function b64(s){ const b=atob(s), u=new Uint8Array(b.length); for (let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u; }
+function parseFrame(line){
+  const t=line.split(' ');
+  if (t.length!==11 || t[0]!=='@F') throw new Error('bad frame');
+  const list=s=>s==='-'?null:s.split(',').map(Number);
+  return {kind:t[1], n:+t[2], pred:t[3]==='-'?-1:+t[3], probs:list(t[4]), peaks:list(t[5]), layout:t[6], summary:list(t[7]), side:+t[8], map:t[9]==='-'?null:b64(t[9]), jpeg:b64(t[10])};
+}
+/* ==CORE END== */
+
+/* ================= UI (uses the DOM) ================= */
+const $ = id => document.getElementById(id);
+const S = {L:mkLayout(64,4,8,2), classes:['0Blank','1Cup'], samples:[], model:null, ws:null, root:null, zipMode:false,
+  dirty:new Set(), modelUnsaved:false, evalRes:null, P:{...DEFAULT_PARAMS}, training:false, paused:false, stopped:false,
+  hist:[], cam:false, grab:null, seq:0, zipChanged:false, sizeWarn:0,
+  P:{...DEFAULT_PARAMS}, radius:3, cache:new Map(), modelVer:0, annBak:new Set(), evalEntries:null, evalRes:null, cases:[]};
+S.ws = newWS(S.L);
+const modelReady = () => !!S.model && S.model.L === S.L;
+const logEl = $('console');
+function log(m){ logEl.value += m+'\n'; logEl.scrollTop = logEl.scrollHeight; }
+const ci = s => S.classes.indexOf(s.cn);
+const refreshIdx = () => S.samples.forEach(s => s.cls = ci(s));
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+const mc = new MessageChannel(); let tickRes=null; mc.port1.onmessage=()=>{ const r=tickRes; tickRes=null; if(r) r(); };
+const tick = () => new Promise(r=>{ tickRes=r; mc.port2.postMessage(0); });
+const hasFS = typeof window.showDirectoryPicker === 'function';
+$('fsNote').textContent = hasFS ? 'Folder access available (read and write the card directly).' : 'No folder access in this browser: use Load .zip and Save .zip.';
+const NAME_OK = /^[A-Za-z0-9_-]+$/;
+
+/* ---------- drawing helpers (one shared set) ---------- */
+const work = document.createElement('canvas'); work.width=240; work.height=240; const wctx = work.getContext('2d',{willReadFrequently:true});
+async function decodeRGBA(bytes){
+  const bmp = await createImageBitmap(new Blob([bytes],{type:'image/jpeg'}),{colorSpaceConversion:'none'});
+  if (bmp.width!==240 || bmp.height!==240) S.sizeWarn++;
+  wctx.drawImage(bmp,0,0,240,240); bmp.close();
+  return wctx.getImageData(0,0,240,240).data;
+}
+async function decodeFrame(bytes){ return frameFromRGBA(await decodeRGBA(bytes)); }
+function frameImageData(frame){ const id=new ImageData(240,240); for(let i=0;i<240*240;i++){ id.data[i*4]=frame[i*3]; id.data[i*4+1]=frame[i*3+1]; id.data[i*4+2]=frame[i*3+2]; id.data[i*4+3]=255; } return id; }
+const off240 = document.createElement('canvas'); off240.width=240; off240.height=240;
+function paintFrame(cv, frame, atModelN){            // large view: full model frame, or the exact model input (pixel exact)
+  const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
+  if (atModelN){ const N=atModelN.N, o=document.createElement('canvas'); o.width=o.height=N; o.getContext('2d').putImageData(new ImageData(tensorToRGBA(atModelN.t,N),N,N),0,0); ctx.drawImage(o,0,0,cv.width,cv.height); }
+  else { off240.getContext('2d').putImageData(frameImageData(frame),0,0); ctx.drawImage(off240,0,0,cv.width,cv.height); }
+}
+function paintInput(cv, t, N, capEl){                 // model input view: tensor -> 8 bit, integer upscale, no smoothing
+  cv.width=cv.height=N; cv.getContext('2d').putImageData(new ImageData(tensorToRGBA(t,N),N,N),0,0);
+  const sc=Math.max(1,Math.min(4,Math.floor(180/N))); cv.style.width=cv.style.height=(N*sc)+'px';
+  if (capEl) capEl.textContent=`model input ${N}x${N}x3 (what the model sees)`;
+}
+function heat(v){ return `hsla(${Math.round((1-Math.min(1,Math.max(0,v)))*240)},100%,50%,0.5)`; }
+function drawHeat(cv, vals, G){ const ctx=cv.getContext('2d'), w=cv.width/G; for(let i=0;i<G*G;i++){ ctx.fillStyle=heat(vals[i]); ctx.fillRect((i%G)*w,Math.floor(i/G)*w,w+0.5,w+0.5); } }
+function detCoords(d,G){ return {x:Math.round(px240(d.cx,G)), y:Math.round(px240(d.cy,G))}; }
+function drawDetections(cv, dets, G, color){          // box = blob cells, cross = weighted centroid, label = class conf (x,y px)
+  const ctx=cv.getContext('2d'), w=cv.width/G; ctx.lineWidth=2; ctx.font='bold 13px system-ui';
+  dets.forEach((d,i)=>{ ctx.strokeStyle=color||'#27e0ff'; ctx.fillStyle=ctx.strokeStyle;
+    ctx.strokeRect(d.minX*w,d.minY*w,(d.maxX-d.minX+1)*w,(d.maxY-d.minY+1)*w);
+    const x=(d.cx+0.5)*w, y=(d.cy+0.5)*w; ctx.beginPath(); ctx.moveTo(x-9,y); ctx.lineTo(x+9,y); ctx.moveTo(x,y-9); ctx.lineTo(x,y+9); ctx.stroke();
+    const c=detCoords(d,G); ctx.fillText(`${i+1}: ${S.classes[d.cls]||d.cls} ${d.conf.toFixed(2)} (${c.x},${c.y})`, d.minX*w+2, Math.max(13,d.minY*w-4)); });
+}
+function detTable(dets, G){
+  if (!dets.length) return '<div class="mu">no objects found above the threshold</div>';
+  return '<table class="dtab"><tr><th>#</th><th>class</th><th>x px</th><th>y px</th><th>cell</th><th>conf</th><th>cells</th></tr>'+
+    dets.map((d,i)=>{ const c=detCoords(d,G); return `<tr><td>${i+1}</td><td>${S.classes[d.cls]||d.cls}</td><td>${c.x}</td><td>${c.y}</td><td>${d.cx.toFixed(1)}, ${d.cy.toFixed(1)}</td><td>${d.conf.toFixed(2)}</td><td>${d.cells}</td></tr>`; }).join('')+'</table><div class="mu">x,y = weighted centroid in the 240x240 model frame (the OLED frame)</div>';
+}
+function ovValues(ov, ws, L){                          // returns {vals,G} for overlay choice
+  if (ov==='none') return null;
+  if (ov==='max'||ov==='mean'){ const v=new Float32Array(L.cells); let mx=1e-9;
+    for(let c=0;c<L.cells;c++){ let a=-1e9,s=0; for(let f=0;f<L.c2;f++){ const x=ws.c2o[f*L.cells+c]; if(x>a)a=x; s+=x; } v[c]=ov==='max'?a:s/L.c2; if(v[c]>mx)mx=v[c]; }
+    for(let c=0;c<L.cells;c++) v[c]=Math.max(0,v[c])/mx; return v; }
+  const k=+ov.slice(1); return ws.fomo.subarray(k*L.cells,(k+1)*L.cells);
+}
+function fillOvSelect(sel, keep){
+  const cur = keep ? sel.value : null; sel.innerHTML='';
+  const add=(v,t)=>{ const o=document.createElement('option'); o.value=v; o.textContent=t; sel.appendChild(o); };
+  S.classes.forEach((c,k)=>add('c'+k,'FOMO map: '+c)); add('max','conv2 max over filters'); add('mean','conv2 mean over filters'); add('none','none');
+  if (cur && [...sel.options].some(o=>o.value===cur)) sel.value=cur; else sel.value = S.classes.length>1?'c1':'c0';
+}
+
+/* ---------- layout / classes ---------- */
+function layoutText(L){
+  return `#define INPUT_SIZE ${L.N}\n#define CONV1_FILTERS ${L.c1}\n#define CONV2_FILTERS ${L.c2}\n#define NUM_CLASSES ${L.C}\nString myClassLabels[NUM_CLASSES] = {${S.classes.map(c=>'"'+c+'"').join(', ')}};`;
+}
+function renderLayout(){
+  const L=S.L;
+  $('inN').value=L.N; $('inC1').value=L.c1; $('inC2').value=L.c2;
+  $('layInfo').textContent = `conv1 ${L.c1o}x${L.c1o}x${L.c1} → pool ${L.p1}x${L.p1}x${L.c1} → conv2 ${L.c2o}x${L.c2o}x${L.c2} → 1x1 head → FOMO grid ${L.G}x${L.G} x ${L.C} classes (${L.cells} cells, each covers ${(240/L.G).toFixed(1)} px of the 240 px frame)\n`+
+    `weights file: ${L.floats} floats = ${L.bytes} bytes (only ${L.used} floats are trained; the rest of the output block is the firmware's unused tail)\n\n`+layoutText(L);
+  $('fwLines').textContent = layoutText(L);
+  for (const id of ['capModelCap','liveModelCap','devModelCap','wsModelCap']) $(id).textContent=`model input ${L.N}x${L.N}x3 (what the model sees)`;
+  $('devModelCap').textContent += ' — rebuilt by the page from the device JPEG';
+  fillOvSelect($('liveOv'),true); fillOvSelect($('devOv'),true); fillOvSelect($('wsOv'),true); if (typeof wsFilterOptions==='function') wsFilterOptions();
+  for (const id of ['capClass','wsMoveSel']){ const sel=$(id), cur=sel.value; sel.innerHTML=''; S.classes.forEach((c,k)=>{ const o=document.createElement('option'); o.value=c; o.textContent=`${k}: ${c}`; sel.appendChild(o); }); if([...sel.options].some(o=>o.value===cur)) sel.value=cur; else if(id==='capClass'&&S.classes[1]) sel.value=S.classes[1]; }
+  modelInfo();
+}
+function applyLayout(N,c1,c2,C,quiet){
+  const L=mkLayout(N,c1,c2,C);
+  if (L.err){ $('layMsg').textContent=L.err; $('layMsg').className='bad'; renderLayout(); return false; }
+  if (!quiet && S.model && S.modelUnsaved && !confirm('Changing the layout discards the unsaved model in memory. Continue?')){ renderLayout(); return false; }
+  $('layMsg').textContent=''; S.L=L; S.model=null; S.ws=newWS(L); S.evalRes=null; S.modelUnsaved=false;
+  S.samples.forEach(s=>{ s.t=null; }); S.modelVer++; S.evalEntries=null; S.evalRes=null; redrawViews(); renderLayout(); renderClasses(); evalClear(); return true;
+}
+function redrawViews(){ S.grab && drawCapture(S.grab); if(WS.open) wsDraw(); if(S.lastDev) showDeviceFrame(S.lastDev,true); }
+for (const id of ['inN','inC1','inC2']) $(id).addEventListener('change',()=>applyLayout(+$('inN').value,+$('inC1').value,+$('inC2').value,S.classes.length));
+
+function getSplit(){ refreshIdx(); return splitData(S.samples, S.classes.length, $('valMode').value, +$('valN').value, +$('valN').value); }
+function renderClasses(){
+  refreshIdx(); const sp=getSplit(), tb=$('clsTable').querySelector('tbody'); tb.innerHTML='';
+  S.classes.forEach((c,k)=>{
+    const its=S.samples.filter(s=>s.cn===c), nb=its.filter(s=>s.boxes&&s.boxes.length).length, tr=document.createElement('tr');
+    tr.innerHTML=`<td>${k}</td><td>${c}${NAME_OK.test(c)?'':' <span class="warn">(unusual characters)</span>'}</td><td>${k===0?'background (no boxes)':'object'}</td><td>${its.length}</td><td>${k===0?'—':nb+' labeled'+(its.length-nb?` <span class="warn">(${its.length-nb} use default box)</span>`:'')}</td><td>${sp.per[k]?sp.per[k].train+' / '+sp.per[k].val:'0 / 0'}${sp.per[k]&&sp.per[k].train===0&&its.length?' <span class="bad">no training samples left</span>':''}</td><td><button class="dng" data-rm="${c}">Remove</button></td>`;
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>removeClass(b.dataset.rm));
+  renderBrowser(); wsUpdateMarked(); renderQueue(); fillParSel();
+}
+for (const id of ['valMode','valN']) $(id).addEventListener('change',renderClasses);
+async function addClass(){
+  const n=$('newClass').value.trim();
+  if (!NAME_OK.test(n)) return alert('Use letters, digits, _ and - only.');
+  if (S.classes.includes(n)) return alert('That class exists.');
+  if (S.classes.length>=12) return alert('At most 12 classes.');
+  const keep=S.classes.slice(); S.classes.push(n);
+  if (!applyLayout(S.L.N,S.L.c1,S.L.c2,S.classes.length)){ S.classes=keep; renderLayout(); return; }
+  if (S.root) try{ await dirAt(['images',n],true); }catch(e){ log('could not create folder: '+e.message); }
+  $('newClass').value=''; log('added class '+n+' (layout and weight file size changed: NUM_CLASSES='+S.classes.length+')');
+}
+async function removeClass(c){
+  if (S.classes.length<=2) return alert('At least two classes are needed (background + one object).');
+  const n=S.samples.filter(s=>s.cn===c).length;
+  if (!confirm(`Remove class "${c}" and delete its ${n} image(s)${S.root?' from the SD card':''}? This cannot be undone.`)) return;
+  const keep=S.classes.slice(); S.classes=S.classes.filter(x=>x!==c);
+  const gone=S.samples.filter(s=>s.cn===c); S.samples=S.samples.filter(s=>s.cn!==c); S.dirty.delete(c);
+  if (!applyLayout(S.L.N,S.L.c1,S.L.c2,S.classes.length)){ S.classes=keep; S.samples=S.samples.concat(gone); renderLayout(); return; }
+  if (S.root) try{ await fsRemoveDir('images/'+c); }catch(e){ log('could not remove folder: '+e.message); }
+  S.zipChanged=true; log('removed class '+c);
+}
+$('addClass').onclick=addClass;
+
+/* ---------- file system ---------- */
+async function dirAt(parts,create){ let d=S.root; for(const p of parts) d=await d.getDirectoryHandle(p,{create}); return d; }
+async function fsRead(path){ try{ const parts=path.split('/'), nm=parts.pop(); const d=await dirAt(parts,false); const f=await (await d.getFileHandle(nm)).getFile(); return new Uint8Array(await f.arrayBuffer()); }catch(e){ return null; } }
+async function fsWrite(path,data){ const parts=path.split('/'), nm=parts.pop(); const d=await dirAt(parts,true); const w=await (await d.getFileHandle(nm,{create:true})).createWritable(); await w.write(data); await w.close(); }
+async function fsBackup(path){ const old=await fsRead(path); if(old){ await fsWrite(path+'.bak',old); return true; } return false; }
+async function fsRemove(path){ const parts=path.split('/'), nm=parts.pop(); const d=await dirAt(parts,false); await d.removeEntry(nm); }
+async function fsRemoveDir(path){ const parts=path.split('/'), nm=parts.pop(); const d=await dirAt(parts,false); await d.removeEntry(nm,{recursive:true}); }
+function dl(name,bytes,mime){ const a=document.createElement('a'); const u=URL.createObjectURL(new Blob([bytes],{type:mime||'application/octet-stream'})); a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),4000); }
+
+/* ---------- loading ---------- */
+const isJpg = n => n.endsWith('.jpg') || n.endsWith('.JPG');
+async function pickDir(){
+  try{
+    const root=await window.showDirectoryPicker({mode:'readwrite'}); S.root=root; S.zipMode=false;
+    const pack={images:[],ann:{},weights:null,config:null,ignored:0};
+    let imgDir=null; try{ imgDir=await root.getDirectoryHandle('images'); }catch(e){}
+    if (imgDir) for await (const [cn,h] of imgDir.entries()){
+      if (h.kind!=='directory') continue;
+      for await (const [fn,fh] of h.entries()){
+        if (fh.kind!=='file') continue;
+        const f=await fh.getFile();
+        if (isJpg(fn)) pack.images.push({cn,name:fn,bytes:new Uint8Array(await f.arrayBuffer())});
+        else if (fn==='annotations.json') pack.ann[cn]=await f.text();
+        else pack.ignored++;
+      }
+      if (!pack.images.some(i=>i.cn===cn)) pack.images.push({cn,name:null});   // empty class folder
+    }
+    pack.weights=await fsRead('header/myWeights.bin'); const cf=await fsRead('header/config.json'); pack.config=cf?new TextDecoder().decode(cf):null;
+    await ingest(pack,'SD folder');
+  }catch(e){ if(e.name!=='AbortError'){ log('load failed: '+e.message); alert('Load failed: '+e.message); } }
+}
+async function loadZip(file){
+  try{
+    S.root=null; S.zipMode=true; const ents=await unzip(new Uint8Array(await file.arrayBuffer()));
+    const pack={images:[],ann:{},weights:null,config:null,ignored:0};
+    for (const e of ents){
+      const p=e.name.split('/');
+      if (p[0]==='images' && p.length===3){ if(isJpg(p[2])) pack.images.push({cn:p[1],name:p[2],bytes:e.data}); else if(p[2]==='annotations.json') pack.ann[p[1]]=new TextDecoder().decode(e.data); else pack.ignored++; }
+      else if (e.name==='header/myWeights.bin') pack.weights=e.data;
+      else if (e.name==='header/config.json') pack.config=new TextDecoder().decode(e.data);
+      else pack.ignored++;
+    }
+    await ingest(pack,'zip');
+  }catch(e){ log('zip load failed: '+e.message); alert('Zip load failed: '+e.message); }
+}
+async function ingest(pack,src){
+  const lines=[]; let cfg={};
+  if (pack.config){ try{ cfg=parseConfig(pack.config); }catch(e){ lines.push('config.json present but unreadable: '+e.message); } }
+  const folders=[...new Set(pack.images.map(i=>i.cn))].sort();
+  let classes=[]; if (cfg.classes) classes=cfg.classes.slice();
+  for (const f of folders) if(!classes.includes(f)) classes.push(f);
+  if (!classes.length) classes=['0Blank','1Cup'];
+  if (classes.length<2) classes.push('1Object');
+  if (classes.length>12){ alert('More than 12 classes found; only the first 12 are used.'); classes=classes.slice(0,12); }
+  const orderNote = cfg.classes ? 'class order from config.json' : 'class order = folders sorted alphabetically (keep numeric prefixes)';
+  S.classes=classes; S.samples=[]; S.dirty.clear(); S.model=null; S.modelUnsaved=false; S.evalRes=null; S.evalEntries=null; S.cache=new Map(); S.modelVer++; S.sizeWarn=0; S.annBak=new Set();
+  let N=S.L.N,c1=S.L.c1,c2=S.L.c2;
+  if (cfg.input_size) { N=cfg.input_size; c1=cfg.conv1_filters||c1; c2=cfg.conv2_filters||c2; }
+  let L=mkLayout(N,c1,c2,classes.length); if (L.err){ lines.push('layout from config.json rejected ('+L.err+'), keeping current'); L=mkLayout(S.L.N,S.L.c1,S.L.c2,classes.length); }
+  S.L=L; S.ws=newWS(L);
+  const real=pack.images.filter(i=>i.name); let n=0;
+  const annBy={}; for (const [cn,t] of Object.entries(pack.ann)){ try{ annBy[cn]=parseAnnotations(t); }catch(e){ lines.push(`annotations.json in ${cn} unreadable: ${e.message}`); } }
+  $('summary').textContent='Decoding '+real.length+' images…';
+  for (const im of real){
+    S.samples.push({cn:im.cn, name:im.name, bytes:im.bytes, frame:await decodeFrame(im.bytes), boxes:(annBy[im.cn]&&annBy[im.cn][im.name])||[]});
+    if (++n%25===0){ $('summary').textContent=`Decoding ${n}/${real.length} images…`; await tick(); }
+  }
+  refreshIdx(); renderLayout();
+  const nBoxed=S.samples.filter(s=>s.boxes.length).length;
+  if (nBoxed && cfg.boxes_frame!=='stored') lines.push(`NOTE: ${nBoxed} images have boxes but config.json has no "boxes_frame":"stored" marker. They are read as drawn on the stored JPEG (your annotator). If they were made with index.v002/v003, press "Mirror all boxes horizontally" once.`);
+  const wlines=[];
+  if (pack.weights) wlines.push(loadWeights(pack.weights));
+  else wlines.push('weights: no header/myWeights.bin');
+  const per=classes.map((c,k)=>`  ${k}: ${c} — ${S.samples.filter(s=>s.cn===c).length} images`).join('\n');
+  $('summary').textContent=`Loaded from ${src}: ${S.samples.length} images in ${classes.length} classes (${orderNote})\n${per}\n`+
+    `${wlines.join('\n')}\nconfig.json: ${pack.config?'present':'absent'}${cfg.input_size?` (layout ${cfg.input_size}/${cfg.conv1_filters}/${cfg.conv2_filters})`:''}\n`+
+    `other files ignored: ${pack.ignored}${S.sizeWarn?`\nWARNING: ${S.sizeWarn} image(s) are not 240x240; the firmware assumes 240x240.`:''}\n`+lines.join('\n');
+  log('loaded '+S.samples.length+' images from '+src); S.zipChanged=false;
+  renderClasses(); evalClear(); redrawViews();
+}
+function loadWeights(bytes){
+  let r=parseWeights(bytes,S.L);
+  if (!r.ok){
+    const fits=r.fits||[];
+    if (fits.length===1){
+      const f=fits[0]; log(`weights file fits exactly one layout: INPUT ${f.N}, CONV1 ${f.c1}, CONV2 ${f.c2}; adopting it`);
+      S.L=mkLayout(f.N,f.c1,f.c2,S.classes.length); S.ws=newWS(S.L); S.samples.forEach(s=>s.t=null); renderLayout(); r=parseWeights(bytes,S.L);
+    }
+  }
+  if (!r.ok){
+    const fits=(r.fits||[]).slice(0,3).map(f=>`INPUT ${f.N}, CONV1 ${f.c1}, CONV2 ${f.c2}`);
+    const other=[]; for(let C=2;C<=12;C++){ if(C===S.classes.length) continue; for(const f of findLayouts(bytes.length,C).slice(0,2)) other.push(`${C} classes at INPUT ${f.N}, CONV1 ${f.c1}, CONV2 ${f.c2}`); }
+    log('weights REFUSED: '+r.err);
+    const tail = fits.length ? `; with ${S.classes.length} classes the file would fit: ${fits.join(' | ')}${r.fits.length>3?' …':''}`
+      : `; with ${S.classes.length} classes no layout fits it${other.length?'; the file would fit '+other.slice(0,4).join(' | '):''}`;
+    return `weights: REFUSED (${r.err})${tail}`;
+  }
+  S.model=newModel(S.L); loadArrays(S.model,r.arrays); S.model.trained=true; S.modelUnsaved=false; S.modelVer++;
+  return `weights: loaded ${bytes.length} bytes, matches layout ${S.L.N}/${S.L.c1}/${S.L.c2}, ${S.classes.length} classes`;
+}
+$('pickBtn').onclick=()=>{ if(!hasFS) return alert('This browser has no folder access. Use Load .zip.'); pickDir(); };
+$('zipBtn').onclick=()=>$('zipFile').click();
+$('zipFile').onchange=e=>{ if(e.target.files[0]) loadZip(e.target.files[0]); e.target.value=''; };
+
+/* ---------- samples: add, delete, move ---------- */
+async function addSample(cn,bytes,frame,name){
+  const s={cn,name,bytes,frame,boxes:[],cls:S.classes.indexOf(cn)};
+  if (S.root) await fsWrite(`images/${cn}/${name}`,bytes); else S.zipChanged=true;
+  S.samples.push(s); return s;
+}
+async function deleteSample(s){
+  if (S.root) try{ await fsRemove(`images/${s.cn}/${s.name}`); }catch(e){ log('delete failed: '+e.message); }
+  S.samples=S.samples.filter(x=>x!==s); S.cache.delete(s); if (s.boxes.length) S.dirty.add(s.cn); S.zipChanged=true;
+}
+async function moveSample(s,to){
+  if (to===s.cn) return;
+  if (S.root){ await fsWrite(`images/${to}/${s.name}`,s.bytes); try{ await fsRemove(`images/${s.cn}/${s.name}`); }catch(e){} }
+  S.dirty.add(s.cn); S.dirty.add(to); s.cn=to; s.cls=ci(s); if (s.cls===0) s.boxes=[]; S.zipChanged=true;
+}
+
+/* ---------- camera and capture ---------- */
+const c240=document.createElement('canvas'); c240.width=240; c240.height=240; const cctx=c240.getContext('2d',{willReadFrequently:true});
+async function grabFrame(){
+  const v=$('cam'); if(!v.videoWidth) return null;
+  const s=Math.min(v.videoWidth,v.videoHeight), sx=(v.videoWidth-s)/2, sy=(v.videoHeight-s)/2;
+  cctx.save(); cctx.setTransform(1,0,0,1,0,0);
+  if ($('hmirror').checked){ cctx.translate(240,0); cctx.scale(-1,1); }
+  if ($('vflip').checked){ cctx.translate(0,240); cctx.scale(1,-1); }
+  cctx.drawImage(v,sx,sy,s,s,0,0,240,240); cctx.restore();
+  const blob=await new Promise(r=>c240.toBlob(r,'image/jpeg',0.85));
+  const bytes=new Uint8Array(await blob.arrayBuffer());
+  return {bytes, frame:frameFromRGBA(await decodeRGBA(bytes))};          // stored JPEG is decoded again: same path as SD images
+}
+function drawCapture(g){ paintFrame($('capView'),g.frame); paintInput($('capModel'),toTensor(g.frame,S.L.N),S.L.N,$('capModelCap')); }
+async function startCam(){
+  try{
+    const st=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:640},height:{ideal:480}},audio:false});
+    $('cam').srcObject=st; await $('cam').play(); S.cam=true; $('camBtn').textContent='Camera on';
+    (async function loop(){ while(S.cam){ if(!S.busy){ const g=await grabFrame(); if(g){ S.grab=g; drawCapture(g);} } await sleep(200); } })();
+  }catch(e){ alert('Camera failed: '+e.message); }
+}
+$('camBtn').onclick=()=>{ if(!S.cam) startCam(); };
+let capN=0; const sname=()=>`web_${Date.now()}_${String(capN++%1000).padStart(3,'0')}.jpg`;
+async function captureOne(){
+  if(!S.cam) return alert('Start the camera first.');
+  const g=await grabFrame(); if(!g) return; S.busy=true;
+  try{ await addSample($('capClass').value,g.bytes,g.frame,sname()); }finally{ S.busy=false; }
+  flash(); renderClasses(); const w=waiting().length; $('capMsg').textContent='saved '+new Date().toLocaleTimeString()+(w?` · ${w} waiting for a box`:'');
+}
+function flash(){ const f=$('flash'); f.style.transition='none'; f.style.opacity=.7; requestAnimationFrame(()=>{ f.style.transition='opacity .25s'; f.style.opacity=0; }); }
+function waitFrame(){ return new Promise(res=>{ let d=false; const fin=()=>{ if(!d){d=true;clearTimeout(t);res();} }; const t=setTimeout(fin,250); const v=$('cam'); if(v.requestVideoFrameCallback) v.requestVideoFrameCallback(fin); }); }
+let bursting=false;
+async function burst(){
+  if(!S.cam) return alert('Start the camera first.'); if(bursting) return; bursting=true; S.busy=true;
+  const btn=$('burstBtn'), got=[], dly=Math.max(0,+$('burstDelay').value||0);
+  btn.style.background='#e11'; $('rec').style.display='block';
+  try{
+    for(let i=0;i<10;i++){
+      btn.textContent=`REC ${i+1}/10`; await waitFrame(); const g=await grabFrame(); if(g){ got.push(g); flash(); drawCapture(g); }
+      if(dly) await sleep(dly);
+    }
+    const cn=$('capClass').value, added=[]; for(const g of got) added.push(await addSample(cn,g.bytes,g.frame,sname()));
+    $('capMsg').textContent=`burst saved ${got.length} images`;
+    if (S.classes.indexOf(cn)>0 && $('autoLabel').checked && added.length){ btn.textContent='Burst 10 (B)'; renderClasses(); openWorkspace({custom:added,filter:'custom'}); }
+  }catch(e){ log('burst failed: '+e.message); }
+  finally{ bursting=false; S.busy=false; btn.style.background=''; btn.textContent='Burst 10 (B)'; $('rec').style.display='none'; renderClasses(); }
+}
+$('capBtn').onclick=captureOne; $('burstBtn').onclick=burst;
+document.addEventListener('keydown',e=>{
+  if (WS.open) return wsKey(e);
+  if (['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
+  if (e.code==='Space'){ e.preventDefault(); captureOne(); } else if (e.key==='b'||e.key==='B') burst();
+});
+
+/* ---------- sample browser ---------- */
+let urls=[];
+function renderBrowser(){
+  urls.forEach(u=>URL.revokeObjectURL(u)); urls=[]; const box=$('browser'); box.innerHTML='';
+  S.classes.forEach(c=>{
+    const its=S.samples.filter(s=>s.cn===c).sort((a,b)=>a.name<b.name?-1:1), d=document.createElement('details');
+    d.innerHTML=`<summary>${c} — ${its.length} images</summary><div class="thumbs"></div>`;
+    let filled=false; d.addEventListener('toggle',()=>{ if(!d.open||filled) return; filled=true; const th=d.querySelector('.thumbs');
+      its.forEach((s,i)=>{ const u=URL.createObjectURL(new Blob([s.bytes],{type:'image/jpeg'})); urls.push(u); const w=document.createElement('div'); w.className='th';
+        w.innerHTML=`<img loading="lazy" src="${u}" title="${s.name}"><span>${c.startsWith('0')?'':(s.boxes.length?s.boxes.length+' box':'default')}</span>`; w.onclick=()=>openWorkspace({focus:s,filter:'c:'+c}); th.appendChild(w); }); });
+    box.appendChild(d);
+  });
+}
+
+/* ---------- image workspace: every image in one list, label + review + inspect ---------- */
+const WS={open:false,list:[],idx:0,drag:null,custom:null};
+const waiting=()=>S.samples.filter(s=>ci(s)>0&&!s.boxes.length);
+function renderQueue(){
+  const n=waiting().length;
+  $('queueMsg').innerHTML = n ? `<b class="warn">${n} object image${n===1?'':'s'} waiting for a box</b> <span class="mu">— until labeled, the firmware trains on the default centred box (35%–65%).</span>` : '<span class="ok">No object images are waiting for a box.</span>';
+}
+function wsFilterOptions(){
+  const sel=$('wsFilter'), cur=sel.value; sel.innerHTML='';
+  const add=(v,t)=>{ const o=document.createElement('option'); o.value=v; o.textContent=t; sel.appendChild(o); };
+  add('all','All images'); S.classes.forEach((c,k)=>add('c:'+c,`Class ${k}: ${c}`)); add('wait','Waiting for a box'); add('boxed','Has boxes');
+  add('flag','Missed / false / wrong (from Analyze)'); add('mark','Marked bad'); add('custom','Custom list (matrix cell, gallery, burst)');
+  if ([...sel.options].some(o=>o.value===cur)) sel.value=cur;
+}
+function openWorkspace(o){
+  o=o||{}; WS.open=true; $('ws').style.display='flex'; wsFilterOptions();
+  if (o.custom) WS.custom=o.custom; $('wsFilter').value=o.filter||'all'; if (o.sort) $('wsSort').value=o.sort; $('wsSearch').value='';
+  wsBuild(o.focus);
+}
+function wsClose(){ WS.open=false; $('ws').style.display='none'; renderClasses(); if (S.evalEntries) renderEval(); }
+function wsBuild(focus){
+  refreshIdx(); const f=$('wsFilter').value, q=$('wsSearch').value.trim().toLowerCase(); let l=S.samples.slice();
+  if (f.startsWith('c:')) l=l.filter(s=>s.cn===f.slice(2));
+  else if (f==='wait') l=l.filter(s=>s.cls>0&&!s.boxes.length);
+  else if (f==='boxed') l=l.filter(s=>s.boxes.length);
+  else if (f==='flag') l=l.filter(s=>{ const p=S.evalRes&&S.evalRes.per.get(s); return p&&(p.flags.missed||p.flags.falseAlarm||p.flags.wrong); });
+  else if (f==='mark') l=l.filter(s=>s.marked);
+  else if (f==='custom') l=(WS.custom||[]).filter(s=>S.samples.includes(s));
+  if (q) l=l.filter(s=>s.name.toLowerCase().includes(q));
+  const so=$('wsSort').value;
+  if (so==='name') l.sort((a,b)=>(a.cls-b.cls)||(a.name<b.name?-1:a.name>b.name?1:0));
+  else if (so==='susp' && modelReady()){ const sc=new Map(); ensureEntries(l).forEach(e=>{ const d=decodeSample(e.fomo,S.L,S.P); sc.set(e.item, e.item.cls>0?1-d.peakObj:d.peakObj); }); l.sort((a,b)=>sc.get(b)-sc.get(a)); }
+  const prev=focus||WS.list[WS.idx]; WS.list=l; let i=prev?l.indexOf(prev):-1;
+  if (i<0 && (f==='custom'||f==='wait')) i=l.findIndex(s=>s.cls>0&&!s.boxes.length);
+  WS.idx=i<0?0:i; wsRenderList(); wsDraw();
+}
+function wsRowText(d,s,i){
+  const k=ci(s), wait=k>0&&!s.boxes.length;
+  d.className='wr'+(i===WS.idx?' cur':'')+(wait?' wait':'')+(s.marked?' mk':'');
+  d.textContent=`${i+1}  ${k===0?'·':(s.boxes.length?'✓':'○')} ${s.name}  [${k}${s.boxes.length?' ×'+s.boxes.length:''}]`;
+}
+function wsRenderList(){
+  const box=$('wsList'); box.innerHTML=''; const fr=document.createDocumentFragment();
+  WS.list.forEach((s,i)=>{ const d=document.createElement('div'); d.dataset.i=i; wsRowText(d,s,i); fr.appendChild(d); });
+  box.appendChild(fr); $('wsCount').textContent=`${WS.list.length} of ${S.samples.length} images`; $('wsGo').max=WS.list.length;
+  const c=box.children[WS.idx]; if (c) box.scrollTop=Math.max(0,c.offsetTop-80);
+}
+$('wsList').addEventListener('click',e=>{ const r=e.target.closest('.wr'); if (r) wsGo(+r.dataset.i); });
+function wsGo(i){
+  if (!WS.list.length) return; i=Math.max(0,Math.min(WS.list.length-1,i)); const box=$('wsList'), old=box.children[WS.idx];
+  const oi=old?+old.dataset.i:-1; WS.idx=i; if (old) wsRowText(old,WS.list[oi],oi);
+  const nw=box.children[i]; if (nw){ wsRowText(nw,WS.list[i],i); nw.scrollIntoView({block:'nearest'}); }
+  wsDraw();
+}
+function wsDraw(){
+  const s=WS.list[WS.idx], cv=$('wsBig');
+  if (!s){ cv.getContext('2d').clearRect(0,0,cv.width,cv.height); $('wsInfo').textContent='No images in this list.'; $('wsDets').innerHTML=''; $('wsBoxes').innerHTML=''; $('wsSize').textContent=''; return; }
+  s.cls=ci(s); const L=S.L, t=itemTensor(s,L.N), atM=$('wsAtModel').checked;
+  paintFrame(cv,s.frame,atM?{N:L.N,t}:null); paintInput($('wsModel'),t,L.N,$('wsModelCap'));
+  $('wsSize').textContent = atM ? `showing the model input itself: ${L.N}x${L.N} (pixel exact)` : `model frame 240x240 (stored JPEG after the firmware's horizontal flip); model input is ${L.N}x${L.N}`;
+  let info=`${WS.idx+1}/${WS.list.length}  ${s.cn}/${s.name}${s.marked?'   [MARKED BAD]':''}\nclass ${s.cls} (${s.cls===0?'blank: no boxes':'object'})  boxes: ${s.boxes.length?s.boxes.length+' labeled':(s.cls===0?'none needed':'none yet -> firmware uses the default box')}\n`, dets=[];
+  if (modelReady()){
+    forward(S.model,t,S.ws); const ds=decodeSample(S.ws.fomo,L,S.P); dets=ds.dets;
+    const ov=ovValues($('wsOv').value,S.ws,L); if (ov) drawHeat(cv,ov,L.G);
+    info+='\nmodel: average map / peak cell per class\n'+S.classes.map((c,k)=>`  ${c.padEnd(10)} ${(S.ws.dense[k]*100).toFixed(1).padStart(5)}%  peak ${(k?ds.peaks[k]:0).toFixed(3)}`).join('\n');
+  } else info+='\n(no model in memory: train or load weights for heatmaps and detections)';
+  if ($('wsLab').checked && s.cls>0) drawBoxes(cv,s);
+  if ($('wsDet').checked && dets.length) drawDetections(cv,dets,L.G);
+  $('wsDets').innerHTML = modelReady() ? '<b>Model output</b>'+detTable(dets,L.G) : '';
+  wsRenderBoxes(s); $('wsInfo').textContent=info; wsUpdateMarked();
+  const obj=s.cls>0; $('wsCentre').disabled=!obj; $('wsUndo').disabled=!(obj&&s.boxes.length); $('wsClear').disabled=!(obj&&s.boxes.length); cv.style.cursor=obj?'crosshair':'default'; $('wsMark').textContent=s.marked?'Unmark (X)':'Mark bad (X)'; $('wsMoveSel').value=s.cn;
+}
+function wsRenderBoxes(s){
+  const d=$('wsBoxes'); d.innerHTML='';
+  if (s.cls<1){ d.innerHTML='<div class="mu">Blank image (class 0): no boxes needed.</div>'; return; }
+  if (!s.boxes.length){ d.innerHTML='<div class="warn">No box yet: the firmware would use the default centred box.</div>'; return; }
+  d.innerHTML='<b>Labeled boxes</b>'; s.boxes.forEach((b,i)=>{ const r=document.createElement('div'); r.append(`Box ${i+1}: x ${Math.round(b.x1*100)}–${Math.round(b.x2*100)}%, y ${Math.round(b.y1*100)}–${Math.round(b.y2*100)}%  `);
+    const x=document.createElement('button'); x.textContent='✕'; x.style.cssText='min-height:24px;padding:0 8px'; x.onclick=()=>{ s.boxes.splice(i,1); afterEdit(false); }; r.appendChild(x); d.appendChild(r); });
+}
+function drawBoxes(cv,s){
+  const ctx=cv.getContext('2d'), W=cv.width, bx=s.boxes.length?s.boxes:[DEFAULT_BOX];
+  bx.forEach(b=>{ ctx.lineWidth=3; ctx.strokeStyle=s.boxes.length?'#3ecf8e':'#f5b84b'; ctx.setLineDash(s.boxes.length?[]:[6,4]); ctx.strokeRect(b.x1*W,b.y1*W,(b.x2-b.x1)*W,(b.y2-b.y1)*W); });
+  ctx.setLineDash([]);
+  if (WS.drag){ const d=WS.drag; ctx.lineWidth=2; ctx.strokeStyle='#fff'; ctx.setLineDash([4,3]); ctx.strokeRect(Math.min(d.x0,d.x1)*W,Math.min(d.y0,d.y1)*W,Math.abs(d.x1-d.x0)*W,Math.abs(d.y1-d.y0)*W); ctx.setLineDash([]); }
+}
+for (const id of ['wsAtModel','wsOv','wsLab','wsDet']) $(id).addEventListener('change',wsDraw);
+let wsTimer=null;
+$('wsFilter').onchange=()=>wsBuild(); $('wsSort').onchange=()=>wsBuild();
+$('wsSearch').oninput=()=>{ clearTimeout(wsTimer); wsTimer=setTimeout(()=>wsBuild(),200); };
+$('wsGo').onchange=()=>{ const n=+$('wsGo').value; if (n>=1&&n<=WS.list.length) wsGo(n-1); $('wsGo').blur(); };
+$('wsGo').onkeydown=e=>{ if (e.key==='Enter') $('wsGo').onchange(); e.stopPropagation(); };
+$('wsSearch').onkeydown=e=>{ e.stopPropagation(); if (e.key==='Enter'||e.key==='Escape') $('wsSearch').blur(); };
+function wsStep(d){ wsGo(WS.idx+d); }
+function wsNextWaiting(){
+  const n=WS.list.length; for (let k=1;k<=n;k++){ const i=(WS.idx+k)%n, s=WS.list[i]; if (ci(s)>0&&!s.boxes.length){ wsGo(i); return true; } }
+  $('wsSaved').textContent='no more images waiting for a box'; setTimeout(()=>$('wsSaved').textContent='',2500); return false;
+}
+let saveTimer=null;
+function scheduleAutosave(){ if (!$('autoSave').checked||!S.root) return; clearTimeout(saveTimer); saveTimer=setTimeout(()=>saveAnn(true),500); }
+function afterEdit(auto){
+  const s=WS.list[WS.idx]; S.dirty.add(s.cn); renderQueue(); wsDraw(); const row=$('wsList').children[WS.idx]; if (row) wsRowText(row,s,WS.idx); scheduleAutosave();
+  if (auto && $('wsAuto').checked) setTimeout(()=>{ if (WS.open && WS.list[WS.idx]===s) wsStep(1); },220);   // short pause so you see the box land
+}
+function centreBox(){ const s=WS.list[WS.idx]; if (!s||s.cls<1) return; s.boxes=[{...DEFAULT_BOX}]; afterEdit(true); }
+function undoBox(){ const s=WS.list[WS.idx]; if (!s||s.cls<1||!s.boxes.length) return; s.boxes.pop(); afterEdit(false); }
+const wsFrac=e=>{ const r=$('wsBig').getBoundingClientRect(); return {x:Math.min(1,Math.max(0,(e.clientX-r.left)/r.width)), y:Math.min(1,Math.max(0,(e.clientY-r.top)/r.height))}; };
+$('wsBig').addEventListener('pointerdown',e=>{ const s=WS.list[WS.idx]; if (!s||s.cls<1) return; $('wsBig').setPointerCapture(e.pointerId); const p=wsFrac(e); WS.drag={x0:p.x,y0:p.y,x1:p.x,y1:p.y}; });
+$('wsBig').addEventListener('pointermove',e=>{ if (!WS.drag) return; const p=wsFrac(e); WS.drag.x1=p.x; WS.drag.y1=p.y; wsDraw(); });
+$('wsBig').addEventListener('pointerup',e=>{
+  const s=WS.list[WS.idx]; if (!WS.drag||!s) return; const d=WS.drag; WS.drag=null; const r=$('wsBig').getBoundingClientRect();
+  const w=Math.abs(d.x1-d.x0)*r.width, h=Math.abs(d.y1-d.y0)*r.height; let box;
+  if (w>=8&&h>=8) box={x1:Math.min(d.x0,d.x1),y1:Math.min(d.y0,d.y1),x2:Math.max(d.x0,d.x1),y2:Math.max(d.y0,d.y1)};
+  else { const q=0.15; box={x1:Math.max(0,d.x0-q),y1:Math.max(0,d.y0-q),x2:Math.min(1,d.x0+q),y2:Math.min(1,d.y0+q)}; }   // click = standard 30% box
+  s.boxes.push(box); afterEdit(true);
+});
+$('wsBig').addEventListener('pointercancel',()=>{ WS.drag=null; wsDraw(); });
+$('wsClear').onclick=()=>{ const s=WS.list[WS.idx]; s.boxes=[]; afterEdit(false); };
+$('wsCentre').onclick=centreBox; $('wsUndo').onclick=undoBox; $('wsPrev').onclick=()=>wsStep(-1); $('wsNext').onclick=()=>wsStep(1); $('wsNextWait').onclick=wsNextWaiting;
+$('wsSaveNow').onclick=()=>saveAnn(false); $('wsClose').onclick=wsClose;
+$('wsDelete').onclick=async()=>{ const s=WS.list[WS.idx]; if (!s||!confirm(`Delete ${s.cn}/${s.name}${S.root?' from the SD card':''}?`)) return; await deleteSample(s); scheduleAutosave(); wsBuild(WS.list[WS.idx+1]||WS.list[WS.idx-1]); renderQueue(); };
+$('wsMove').onclick=async()=>{ const s=WS.list[WS.idx], to=$('wsMoveSel').value; if (!s||to===s.cn) return; const nxt=WS.list[WS.idx+1]||WS.list[WS.idx-1]; await moveSample(s,to); scheduleAutosave(); log(`moved ${s.name} to ${to}`); wsBuild(WS.list.includes(s)?s:nxt); renderQueue(); };
+function wsMark(){ const s=WS.list[WS.idx]; if (!s) return; s.marked=!s.marked; const row=$('wsList').children[WS.idx]; if (row) wsRowText(row,s,WS.idx); if (s.marked) wsStep(1); else wsDraw(); }
+$('wsMark').onclick=wsMark;
+function wsUpdateMarked(){ const n=S.samples.filter(s=>s.marked).length; $('wsDelMarked').textContent=`Delete marked (${n})`; $('wsDelMarked').disabled=!n; }
+$('wsDelMarked').onclick=async()=>{
+  const m=S.samples.filter(s=>s.marked); if (!m.length) return; const per={}; m.forEach(s=>per[s.cn]=(per[s.cn]||0)+1);
+  if (!confirm(`Delete ${m.length} marked image(s)${S.root?' from the SD card':''}?\n`+Object.entries(per).map(([c,n])=>`  ${c}: ${n}`).join('\n'))) return;
+  for (const s of m) await deleteSample(s); log(`deleted ${m.length} marked images`); scheduleAutosave(); wsBuild(); renderQueue();
+};
+function wsKey(e){
+  if (e.key==='Escape') return wsClose();
+  if (['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName) && document.activeElement.type!=='checkbox') return;
+  if (document.activeElement.tagName==='BUTTON'||document.activeElement.type==='checkbox') document.activeElement.blur();   // so Enter/Space do not also click a focused control
+  const k=e.key;
+  if (k==='ArrowRight'||k==='Enter'||k===' '){ e.preventDefault(); wsStep(1); }
+  else if (k==='ArrowLeft') wsStep(-1);
+  else if (k==='PageDown'){ e.preventDefault(); wsStep(10); } else if (k==='PageUp'){ e.preventDefault(); wsStep(-10); }
+  else if (k==='Home'){ e.preventDefault(); wsGo(0); } else if (k==='End'){ e.preventDefault(); wsGo(WS.list.length-1); }
+  else if (k==='n'||k==='N') wsNextWaiting();
+  else if (k==='c'||k==='C') centreBox();
+  else if (k==='z'||k==='Z'||k==='Backspace'){ e.preventDefault(); undoBox(); }
+  else if (k==='x'||k==='X') wsMark();
+  else if (k==='g'||k==='G'){ e.preventDefault(); $('wsGo').focus(); $('wsGo').select(); }
+  else if (k==='/'){ e.preventDefault(); $('wsSearch').focus(); }
+}
+$('wsOpen').onclick=()=>openWorkspace({filter:'all'});
+$('wsWaiting').onclick=()=>{ if (!waiting().length) return alert('No object images are waiting for a box.'); openWorkspace({filter:'wait'}); };
+$('mirrorAll').onclick=()=>{
+  const n=S.samples.filter(s=>s.boxes.length).length; if (!n) return alert('No boxes to mirror.');
+  if (!confirm(`Mirror the boxes of ${n} images horizontally? Use this only for boxes made with index.v002/v003 (they saved the model frame). Boxes from your FOMO Annotator are already correct.`)) return;
+  S.samples.forEach(s=>{ if (s.boxes.length){ s.boxes=s.boxes.map(mirrorBox); S.dirty.add(s.cn); } }); log(`mirrored boxes of ${n} images`); if (WS.open) wsDraw(); scheduleAutosave(); renderClasses();
+};
+
+/* ---------- training ---------- */
+const plotCtx={loss:$('chLoss').getContext('2d'),acc:$('chAcc').getContext('2d')};
+function plot(ctx,cv,series,title,ymax){
+  const W=cv.width,H=cv.height; ctx.fillStyle='#0c1016'; ctx.fillRect(0,0,W,H); ctx.strokeStyle='#2c3746'; ctx.fillStyle='#93a1b3'; ctx.font='12px system-ui'; ctx.fillText(title,8,14);
+  const n=Math.max(...series.map(s=>s.v.length),2); const my=ymax||Math.max(1e-6,...series.flatMap(s=>s.v.filter(Number.isFinite)));
+  ctx.strokeRect(30,20,W-40,H-34); ctx.fillText(my.toFixed(2),2,28); ctx.fillText('0',14,H-12);
+  for(const s of series){ ctx.strokeStyle=s.c; ctx.beginPath(); let st=false; s.v.forEach((y,i)=>{ if(!Number.isFinite(y)) return; const px=30+(W-40)*i/(n-1), py=H-14-(H-34)*y/my; if(!st){ctx.moveTo(px,py);st=true;} else ctx.lineTo(px,py); }); ctx.stroke(); }
+  let x=W-250; for(const s of series){ ctx.fillStyle=s.c; ctx.fillText('■ '+s.n,x,14); x+=95; }
+}
+function drawCharts(){
+  const h=S.hist;
+  plot(plotCtx.loss,$('chLoss'),[{v:h.map(i=>i.loss),c:'#ff9f4e',n:'train loss'},{v:h.map(i=>i.valLoss),c:'#4ea1ff',n:'val loss'}],'loss per epoch');
+  plot(plotCtx.acc,$('chAcc'),[{v:h.map(i=>i.valF1),c:'#3ecf8e',n:'val det. F1'},{v:h.map(i=>i.valAcc),c:'#8b98a8',n:'fw accuracy'}],'validation per epoch',1);
+}
+function ensureModel(){ if(!S.model || S.model.L!==S.L){ S.model=newModel(S.L); S.model.trained=false; S.modelVer++; } return S.model; }
+$('resetBtn').onclick=()=>{ if(S.training) return; if(S.model && S.modelUnsaved && !confirm('Discard the unsaved model?')) return; S.model=newModel(S.L); S.model.trained=false; S.modelUnsaved=false; S.modelVer++; S.hist=[]; S.evalEntries=null; S.evalRes=null; evalClear(); drawCharts(); modelInfo(); $('trainMsg').textContent='New random model (same init as the firmware).'; };
+async function startTrain(){
+  if (S.training) return; refreshIdx(); readParams();
+  if (!S.samples.length) return alert('No images loaded.');
+  const sp=getSplit(), empty=S.classes.map((c,k)=>k).filter(k=>sp.per[k]&&sp.per[k].train===0);
+  if (!sp.train.length) return alert('No training samples left after the validation hold-out. Lower N or choose percent.');
+  if (empty.length && !confirm('These classes have no training samples left: '+empty.map(k=>S.classes[k]).join(', ')+'. Train anyway?')) return;
+  if (!S.samples.some(s=>s.cls===0)) log('WARNING: class 0 (blank) has no images; the model never sees an empty scene.');
+  const m=ensureModel(); S.training=true; S.paused=false; S.stopped=false; S.hist=[];
+  for (const id of ['trainBtn','resetBtn']) $(id).disabled=true; $('pauseBtn').disabled=false; $('stopBtn').disabled=false;
+  const cfg={lr:+$('lr').value,batch:Math.max(1,Math.round(+$('batch').value)),epochs:Math.max(1,Math.round(+$('epochs').value)),aug:$('aug').checked,cmin:+$('cmin').value,cmax:+$('cmax').value,P:S.P,radius:S.radius};
+  log(`train: ${sp.train.length} train / ${sp.val.length} val, lr ${cfg.lr}, batch ${cfg.batch}, epochs ${cfg.epochs}, aug ${cfg.aug}`);
+  const t0=performance.now();
+  const r=await trainRun(m,sp.train,sp.val,cfg,{tick,idle:()=>sleep(120),stopped:()=>S.stopped,paused:()=>S.paused,
+    onEpoch:i=>{ S.hist.push(i); drawCharts(); $('trainMsg').textContent=`epoch ${i.epoch}/${cfg.epochs}  loss ${i.loss.toFixed(4)}  val loss ${isNaN(i.valLoss)?'—':i.valLoss.toFixed(4)}  val detection F1 ${isNaN(i.valF1)?'—':(i.valF1*100).toFixed(0)+'%'}  ${((performance.now()-t0)/1000).toFixed(0)}s`; },
+    onRollback:i=>{ log(`non-finite loss at epoch ${i.epoch}: rolled back, lr halved to ${i.lr.toExponential(2)} (rollback ${i.rollbacks}/5)`); }});
+  S.training=false; m.trained=true; S.modelUnsaved=true; S.modelVer++; S.evalEntries=null;
+  S.samples.forEach(s=>s.trained=false); sp.train.forEach(s=>s.trained=true);
+  for (const id of ['trainBtn','resetBtn']) $(id).disabled=false; $('pauseBtn').disabled=true; $('stopBtn').disabled=true; $('pauseBtn').textContent='Pause';
+  $('trainMsg').textContent += r.stopped?'  — STOPPED (model kept in memory, not saved)':(r.aborted?'  — ABORTED after 5 rollbacks (model restored to last good epoch, not saved)':'  — finished (not saved yet)');
+  log('training '+(r.stopped?'stopped':r.aborted?'aborted':'finished')); modelInfo(); await runEval();
+}
+$('trainBtn').onclick=startTrain;
+$('pauseBtn').onclick=()=>{ S.paused=!S.paused; $('pauseBtn').textContent=S.paused?'Resume':'Pause'; };
+$('stopBtn').onclick=()=>{ S.stopped=true; S.paused=false; };
+
+/* ---------- analyze ---------- */
+function modelInfo(){
+  const L=S.L, m=S.model;
+  $('modelInfo').textContent = `Architecture: input ${L.N}x${L.N}x3 → conv3x3 ${L.c1} (valid, leaky ReLU, clip ±100) → maxpool2 → conv3x3 ${L.c2} → 1x1 head per cell → sigmoid → ${L.G}x${L.G} map per class (${L.C} classes)\n`+
+    `Decode (same as firmware-v005): per object class, cells ≥ max(threshold, relative × class peak) → 8-connected blobs → weighted centroid → x,y in the 240x240 frame\n`+
+    `Trained parameters: ${L.used}   weight file: ${L.floats} floats, ${L.bytes} bytes\n`+
+    (m ? `Model in memory: ${m.trained?'trained or loaded':'random init'}${S.modelUnsaved?'  (UNSAVED)':''}` : 'No model in memory.');
+}
+const pct=v=>Number.isFinite(v)?(v*100).toFixed(0)+'%':'—';
+function readParams(){
+  S.P={thr:+$('thr').value, rel:Math.min(1,Math.max(0,+$('pRel').value)), minCells:Math.max(1,(+$('pMin').value)|0), maxPer:Math.min(8,Math.max(1,(+$('pMax').value)|0))};
+  S.radius=+$('matchR').value||3; $('thrV').textContent=S.P.thr.toFixed(2);
+}
+function ensureEntries(items){
+  const need=items.filter(it=>{ const e=S.cache.get(it); return !e||e.ver!==S.modelVer; });
+  if (need.length) forwardEntries(S.model,S.ws,need).forEach(e=>{ e.ver=S.modelVer; S.cache.set(e.item,e); });
+  return items.map(it=>S.cache.get(it));
+}
+async function ensureEntriesAsync(items){
+  const need=items.filter(it=>{ const e=S.cache.get(it); return !e||e.ver!==S.modelVer; });
+  for (let i=0;i<need.length;i+=20){ forwardEntries(S.model,S.ws,need.slice(i,i+20)).forEach(e=>{ e.ver=S.modelVer; S.cache.set(e.item,e); }); if (need.length>20) await tick(); }
+  return items.map(it=>S.cache.get(it));
+}
+function evalClear(){ S.evalRes=null; S.evalEntries=null; for (const id of ['mxImg','mxDet','clsStat','gallery']) $(id).innerHTML=''; $('evalInfo').textContent=''; $('evalWarn').textContent=''; $('caseTitle').textContent=''; const c=$('hist'); c.getContext('2d').clearRect(0,0,c.width,c.height); }
+async function runEval(){
+  if (!modelReady()){ evalClear(); $('evalInfo').textContent='No model in memory (train, or load weights).'; return; }
+  refreshIdx(); readParams(); const sp=getSplit(); let set=$('evalSet').value==='val'?sp.val:S.samples, note='';
+  if (!set.length){ set=S.samples; note=' (validation set is empty: using all samples)'; }
+  S.evalNote=note; S.evalEntries=await ensureEntriesAsync(set); renderEval();
+}
+function mxHtml(id,rows,cols,data,diag,rowTitle){
+  let h=`<table class="mx"><tr><th>${rowTitle}</th>`+cols.map(c=>`<th>${c}</th>`).join('')+'<th>total</th></tr>';
+  data.forEach((row,r)=>{ const tot=row.reduce((a,b)=>a+b,0); h+=`<tr><th style="text-align:left">${rows[r]}</th>`;
+    row.forEach((v,c)=>{ const ok=diag(r,c), a=tot?Math.min(1,v/tot):0, bg=v===0?'transparent':(ok?`rgba(76,195,138,${0.15+0.6*a})`:`rgba(229,83,75,${0.15+0.6*a})`);
+      h+=`<td class="c" data-m="${id}" data-r="${r}" data-c="${c}" style="background:${bg}">${v}</td>`; });
+    h+=`<td>${tot}</td></tr>`; });
+  return h+'</table>';
+}
+function renderEval(){
+  if (!S.evalEntries || !modelReady()) return; readParams();
+  const L=S.L, K=L.C-1, live=new Set(S.samples), entries=S.evalEntries.filter(e=>live.has(e.item)); refreshIdx();
+  const ev=evaluate(entries,L,S.P,S.radius); S.evalRes=ev;
+  // histogram of the strongest object cell per image
+  const cv=$('hist'), cx=cv.getContext('2d'), W=cv.width, H=cv.height; cx.fillStyle='#0b0f14'; cx.fillRect(0,0,W,H);
+  const grp=[{n:'object images (trained on)',c:'#5aa2ff',a:[]},{n:'object images (held out / new)',c:'#4cc38a',a:[]},{n:'blank images',c:'#e5534b',a:[]}];
+  ev.per.forEach((p,it)=>{ (it.cls===0?grp[2]:(it.trained?grp[0]:grp[1])).a.push(p.peakObj); });
+  const bins=20, pw=(W-50)/bins; cx.font='11px sans-serif';
+  grp.forEach(g=>{ if (!g.a.length) return; const h=new Array(bins).fill(0); g.a.forEach(v=>h[Math.min(bins-1,Math.floor(v*bins))]++);
+    cx.fillStyle=g.c+'99'; h.forEach((c,b)=>{ const hh=Math.min(H-34,(c/g.a.length)*(H-40)*1.6); cx.fillRect(40+b*pw+1,H-20-hh,pw-2,hh); }); });
+  cx.fillStyle='#8b98a8'; for (let b=0;b<=10;b++) cx.fillText((b/10).toFixed(1),34+b*pw*2,H-5); cx.fillText('% of group',2,12);
+  const tx=40+S.P.thr*bins*pw; cx.strokeStyle='#e0a63a'; cx.lineWidth=2; cx.beginPath(); cx.moveTo(tx,5); cx.lineTo(tx,H-20); cx.stroke();
+  // matrices
+  const cn=S.classes;
+  $('mxImg').innerHTML=mxHtml('img',cn.map((c,k)=>`true: ${k===0?c+' (blank)':c}`),['none found',...cn.slice(1).map(c=>'strongest: '+c)],ev.img,(r,c)=>r===0?c===0:c===r,'image is');
+  $('mxDet').innerHTML=mxHtml('det',[...cn.slice(1).map(c=>'object: '+c),'nothing there'],[...cn.slice(1).map(c=>'found: '+c),'missed'],ev.det,(r,c)=>r===c&&r<K,'real thing');
+  // per class
+  let t='<table><tr><th>class</th><th>labeled objects</th><th>blobs found</th><th>correct</th><th>false / wrong</th><th>missed / wrong</th><th>precision</th><th>recall</th><th>F1</th><th>centroid error</th></tr>';
+  for (let k=1;k<=K;k++){ const c=ev.cls[k]; t+=`<tr><td>${cn[k]}</td><td>${c.gt}</td><td>${c.pred}</td><td>${c.tp}</td><td>${c.fp}</td><td>${c.fn}</td><td>${pct(c.prec)}</td><td>${pct(c.recall??c.rec)}</td><td>${pct(c.f1)}</td><td>${Number.isFinite(c.errPx)?c.errPx.toFixed(1)+' px':'—'}</td></tr>`; }
+  const mi=ev.micro; t+=`<tr><th>all objects</th><td>${mi.tp+mi.fn}</td><td>${mi.tp+mi.fp}</td><td>${mi.tp}</td><td>${mi.fp}</td><td>${mi.fn}</td><td>${pct(mi.prec)}</td><td>${pct(mi.rec)}</td><td>${pct(mi.f1)}</td><td></td></tr></table>`;
+  $('clsStat').innerHTML=t;
+  const blank=[...ev.per.keys()].filter(i=>i.cls===0), blankFa=blank.filter(i=>ev.per.get(i).dets.length).length, objImgs=[...ev.per.keys()].filter(i=>i.cls>0), found=objImgs.filter(i=>ev.per.get(i).dets.length).length;
+  $('evalInfo').textContent=`${ev.n} images evaluated${S.evalNote||''} · threshold ${S.P.thr.toFixed(2)}, relative ${S.P.rel.toFixed(2)}, match radius ${S.radius} cells (${(S.radius*240/L.G).toFixed(0)} px)\n`+
+    `blank images with a false alarm: ${blank.length?(100*blankFa/blank.length).toFixed(0)+'% ('+blankFa+' of '+blank.length+')':'n/a (no blank images)'} · object images with at least one blob: ${objImgs.length?(100*found/objImgs.length).toFixed(0)+'% ('+found+' of '+objImgs.length+')':'n/a'} · firmware-metric accuracy (average map argmax): ${pct(ev.acc)}\n`+
+    `Sketch constants for these settings: #define MY_DET_ABS_THRESHOLD ${S.P.thr.toFixed(2)}f  #define MY_DET_REL_THRESHOLD ${S.P.rel.toFixed(2)}f  #define MY_DET_MIN_CELLS ${S.P.minCells}`;
+  const w=[], counts=cn.map(c=>S.samples.filter(s=>s.cn===c).length);
+  for (let k=1;k<=K;k++){ if (counts[k]<10) w.push(`class ${cn[k]} has only ${counts[k]} images (under 10)`); const nb=S.samples.filter(s=>s.cn===cn[k]&&!s.boxes.length).length; if (nb) w.push(`${nb} ${cn[k]} images have no box: training and this evaluation use the default centred box for them`); }
+  if (counts[0]<1) w.push('no blank images: the model never learns what an empty scene looks like'); else if (counts[0]<10) w.push(`only ${counts[0]} blank images`);
+  const nz=counts.filter(n=>n>0); if (nz.length>1&&Math.max(...nz)>3*Math.min(...nz)) w.push(`class imbalance: ${Math.max(...nz)} vs ${Math.min(...nz)} images (more than 3x)`);
+  if (!entries.some(e=>!e.item.trained)) w.push('every evaluated image was trained on: the numbers are optimistic (evaluate on the validation set or add new images)');
+  if (grp[0].a.length+grp[1].a.length && Math.max(0,...grp[0].a.concat(grp[1].a))<S.P.thr) w.push('no object image reaches the threshold: lower it or train longer (the firmware also prints peaks near 0.40 after a short run)');
+  $('evalWarn').textContent=w.join(' · ');
+  S.mx={img:ev.imgS, det:ev.detS};
+}
+document.addEventListener('click',e=>{
+  const td=e.target.closest('td.c'); if (!td||!S.mx) return; const m=td.dataset.m, r=+td.dataset.r, c=+td.dataset.c, list=(S.mx[m][r]||[])[c]||[];
+  showCases(list,`${m==='img'?'image matrix':'detection matrix'}: ${td.parentNode.firstChild.textContent} → ${$(m==='img'?'mxImg':'mxDet').querySelector('tr').children[c+1].textContent}`);
+});
+function showCases(list,title){
+  S.cases=list; $('caseTitle').textContent=`${title}: ${list.length} image${list.length===1?'':'s'}`; const g=$('gallery'); g.innerHTML='';
+  if (!list.length){ g.innerHTML='<span class="mu">none</span>'; return; }
+  list.slice(0,60).forEach(it=>{ const p=S.evalRes&&S.evalRes.per.get(it), cv=document.createElement('canvas'); cv.width=cv.height=96; cv.style.cursor='pointer'; cv.title=`${it.cn}/${it.name}`;
+    paintFrame(cv,it.frame); const c=cv.getContext('2d'); c.fillStyle='#000a'; c.fillRect(0,80,96,16); c.fillStyle='#ffb'; c.font='11px system-ui'; c.fillText(`${it.cls} peak ${p?p.peakObj.toFixed(2):'—'} ×${p?p.dets.length:0}`,2,92);
+    cv.onclick=()=>openWorkspace({custom:list,filter:'custom',focus:it}); g.appendChild(cv); });
+  if (list.length>60){ const s=document.createElement('span'); s.className='mu'; s.textContent=`first 60 shown; open one to browse all ${list.length}`; g.appendChild(s); }
+}
+document.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{
+  if (!S.evalRes) return alert('Press "Update evaluation" first (needs a model).'); const per=[...S.evalRes.per], ev=S.evalRes;
+  const k=b.dataset.case; document.querySelectorAll('.chip').forEach(x=>x.classList.toggle('on',x===b));
+  if (k==='missed') showCases(per.filter(([i,p])=>p.flags.missed).map(x=>x[0]),'missed objects');
+  else if (k==='false') showCases(per.filter(([i,p])=>p.flags.falseAlarm).map(x=>x[0]),'false alarms');
+  else if (k==='wrong') showCases(per.filter(([i,p])=>p.flags.wrong).map(x=>x[0]),'wrong class');
+  else if (k==='low') showCases(per.filter(([i])=>i.cls>0).sort((a,b)=>a[1].peakObj-b[1].peakObj).slice(0,24).map(x=>x[0]),'weakest object images');
+  else showCases(per.filter(([i])=>i.cls===0).sort((a,b)=>b[1].peakObj-a[1].peakObj).slice(0,24).map(x=>x[0]),'strongest blank images');
+});
+$('evalBtn').onclick=runEval;
+for (const id of ['thr','pRel','pMin','pMax','matchR']) $(id).addEventListener('input',()=>{ if (S.evalEntries) renderEval(); else readParams(); });
+$('evalSet').onchange=runEval;
+$('bestThr').onclick=()=>{ if (!S.evalEntries) return alert('Press "Update evaluation" first.'); readParams(); const b=bestThreshold(S.evalEntries,S.L,S.P,S.radius); if (b.f1<0) return; $('thr').value=b.thr; renderEval(); $('evalInfo').textContent+=`\nbest F1 ${(b.f1*100).toFixed(0)}% at threshold ${b.thr.toFixed(2)} (set on the slider)`; };
+function fillParSel(){ const sel=$('parSel'), cur=sel.value; sel.innerHTML=S.samples.slice(0,2000).map(s=>`<option value="${s.cn}/${s.name}">${s.cn}/${s.name}</option>`).join(''); if ([...sel.options].some(o=>o.value===cur)) sel.value=cur; }
+$('parBtn').onclick=()=>{
+  if (!modelReady()) return alert('No model in memory.'); readParams();
+  const s=S.samples.find(x=>`${x.cn}/${x.name}`===$('parSel').value)||S.samples[0]; if (!s) return alert('No samples.'); s.cls=ci(s);
+  const L=S.L, t=itemTensor(s,L.N); forward(S.model,t,S.ws); const ds=decodeSample(S.ws.fomo,L,S.P), p=argmax(S.ws.dense), c=((L.N>>1)*L.N+(L.N>>1))*3;
+  let o=`sample ${s.cn}/${s.name}\ninput centre pixel (r,g,b): ${t[c].toFixed(4)},${t[c+1].toFixed(4)},${t[c+2].toFixed(4)}\n`;
+  o+=`F1: pred=${S.classes[p]}(${(S.ws.dense[p]*100).toFixed(0)}%) | `+S.classes.map((n,k)=>` ${n}=${(S.ws.dense[k]*100).toFixed(0)}%`).join('')+` | Objects(${ds.dets.length}):`+(ds.dets.length?ds.dets.map(d=>{ const q=detCoords(d,L.G); return ` [${S.classes[d.cls]} x=${q.x} y=${q.y} @${d.conf.toFixed(2)} n=${d.cells}]`; }).join(''):' none')+'\n';
+  o+=`average map (4 decimals): ${Array.from(S.ws.dense).map(v=>v.toFixed(4)).join(',')}\npeak per class: ${ds.peaks.map(v=>v.toFixed(4)).join(',')}\n`;
+  $('parOut').style.display='block'; $('parOut').textContent=o; log(o);
+};
+
+/* ---------- live inference ---------- */
+let live=false;
+async function liveLoop(){
+  while(live){ try{
+    if(!S.cam||!modelReady()){ $('liveMsg').textContent=!S.cam?'start the camera first':'no model in memory'; live=false; $('liveBtn').textContent='Start live inference'; break; }
+    const g=await grabFrame(); if(!g){ await sleep(100); continue; }
+    readParams(); const L=S.L, t=toTensor(g.frame,L.N); forward(S.model,t,S.ws); const ds=decodeSample(S.ws.fomo,L,S.P), p=argmax(S.ws.dense);
+    const cv=$('liveView'); paintFrame(cv,g.frame); const ov=ovValues($('liveOv').value,S.ws,L); if(ov) drawHeat(cv,ov,L.G); if($('liveDet').checked) drawDetections(cv,ds.dets,L.G);
+    paintInput($('liveModel'),t,L.N,$('liveModelCap'));
+    const cnt={}; ds.dets.forEach(d=>cnt[S.classes[d.cls]]=(cnt[S.classes[d.cls]]||0)+1);
+    $('banner').textContent = ds.dets.length ? `${ds.dets.length} object${ds.dets.length===1?'':'s'}: `+Object.entries(cnt).map(([k,v])=>`${v}× ${k}`).join(', ') : 'no objects';
+    $('liveDets').innerHTML=detTable(ds.dets,L.G);
+    $('liveBars').innerHTML=S.classes.map((c,k)=>`<div>${c}: average map ${(S.ws.dense[k]*100).toFixed(1)}% <span class="mu">peak ${(k?ds.peaks[k]:0).toFixed(2)}</span><div class="bar"><i style="width:${Math.min(100,S.ws.dense[k]*100)}%"></i></div></div>`).join('');
+    await sleep(60);
+  }catch(e){ live=false; $('liveBtn').textContent='Start live inference'; $('liveMsg').textContent='live inference stopped: '+e.message; log('live inference error: '+e.message); } }
+}
+$('liveBtn').onclick=()=>{ if(live){ live=false; $('liveBtn').textContent='Start live inference'; return; } live=true; $('liveBtn').textContent='Stop live inference'; $('liveMsg').textContent=''; liveLoop(); };
+
+/* ---------- save ---------- */
+async function saveWeights(){
+  if(!S.model||S.model.L!==S.L) return alert('No model in memory.');
+  let bytes; try{ bytes=serializeWeights(S.model); }catch(e){ return alert(e.message); }
+  const cfg=new TextEncoder().encode(buildConfig(S.L,S.classes));
+  try{
+    if (S.root){ const had=await fsBackup('header/myWeights.bin'); await fsWrite('header/myWeights.bin',bytes); await fsBackup('header/config.json'); await fsWrite('header/config.json',cfg);
+      $('saveMsg').textContent=`saved header/myWeights.bin (${bytes.length} bytes)${had?' (previous copied to myWeights.bin.bak)':''} and header/config.json`; }
+    else { dl('myWeights.bin',bytes); dl('config.json',cfg,'application/json'); $('saveMsg').textContent='downloaded myWeights.bin and config.json: copy both into the card\'s header/ folder'; }
+    S.modelUnsaved=false; modelInfo(); log('weights saved');
+  }catch(e){ alert('Save failed: '+e.message); }
+}
+async function saveCfg(){
+  const cfg=new TextEncoder().encode(buildConfig(S.L,S.classes));
+  try{ if(S.root){ await fsBackup('header/config.json'); await fsWrite('header/config.json',cfg); $('saveMsg').textContent='wrote header/config.json'; } else dl('config.json',cfg,'application/json'); }catch(e){ alert('Save failed: '+e.message); }
+}
+async function saveAnn(quiet){
+  const out=[];
+  for (const [k,c] of S.classes.entries()){ if(k===0) continue; const its=S.samples.filter(s=>s.cn===c), any=its.some(s=>s.boxes.length);
+    if (S.root && !S.dirty.has(c)) continue; if (!any && !S.dirty.has(c)) continue;
+    out.push({path:`images/${c}/annotations.json`, data:new TextEncoder().encode(buildAnnotations(its)), c}); }
+  if (!out.length){ if(!quiet) $('saveMsg').textContent='no annotation changes to save'; return; }
+  try{
+    for (const o of out){ if(S.root){ if(!S.annBak.has(o.c)){ await fsBackup(o.path); S.annBak.add(o.c); } await fsWrite(o.path,o.data); S.dirty.delete(o.c); } else dl(o.c+'_annotations.json',o.data,'application/json'); }
+    const msg=S.root?`wrote ${out.length} annotations.json file(s) (stored-JPEG frame; the first write per class this session copied the old file to .bak)`:'downloaded annotation files: put each into its class folder as annotations.json';
+    $('saveMsg').textContent=msg; $('wsSaved').textContent='saved ✓'; setTimeout(()=>{ $('wsSaved').textContent=''; },1200);
+  }catch(e){ if(quiet) $('wsSaved').textContent='SAVE FAILED: '+e.message; else alert('Save failed: '+e.message); }
+}
+function saveZip(){
+  const ent=[{name:'images/',data:null}];
+  for (const [k,c] of S.classes.entries()){ ent.push({name:`images/${c}/`,data:null});
+    const its=S.samples.filter(s=>s.cn===c);
+    if ($('zipImg').checked) for (const s of its) ent.push({name:`images/${c}/${s.name}`,data:s.bytes});
+    if (k>0 && its.some(s=>s.boxes.length)) ent.push({name:`images/${c}/annotations.json`,data:new TextEncoder().encode(buildAnnotations(its))}); }
+  ent.push({name:'header/',data:null});
+  if (S.model && S.model.L===S.L){ try{ ent.push({name:'header/myWeights.bin',data:serializeWeights(S.model)}); }catch(e){ return alert(e.message); } }
+  ent.push({name:'header/config.json',data:new TextEncoder().encode(buildConfig(S.L,S.classes))});
+  dl('sd-card-fomo.zip',zipStore(ent),'application/zip'); S.zipChanged=false; $('saveMsg').textContent='zip downloaded (normal download link)';
+}
+$('saveW').onclick=saveWeights; $('saveCfg').onclick=saveCfg; $('saveAnn').onclick=()=>saveAnn(false); $('saveZip').onclick=saveZip;
+window.addEventListener('beforeunload',e=>{ if ((S.model&&S.modelUnsaved)||S.dirty.size||(S.zipMode&&S.zipChanged)){ e.preventDefault(); e.returnValue=''; } });
+
+/* ---------- serial monitor + device view ---------- */
+let port=null, writer=null, reading=false, hb=null; const so=$('serOut');
+function serText(t){ so.value+=t; if(so.value.length>60000) so.value=so.value.slice(-40000); so.scrollTop=so.scrollHeight; }
+const parser=makeSerialParser(serText, line=>{ const f=parseFrame(line); S.lastDev=f; showDeviceFrame(f); });
+async function serSend(txt){ if(writer) await writer.write(new TextEncoder().encode(txt)); }
+async function serConnect(){
+  if(!('serial' in navigator)) return alert('Web Serial needs Chrome or Edge.');
+  try{
+    port=await navigator.serial.requestPort(); await port.open({baudRate:115200}); writer=port.writable.getWriter(); reading=true;
+    $('serBtn').disabled=true; $('serDis').disabled=false; serText('--- connected ---\n');
+    if($('serDbg').checked){ await serSend('D'); } hb=setInterval(()=>{ if($('serDbg').checked) serSend('D').catch(()=>{}); },5000);
+    const dec=new TextDecoder(); const rd=port.readable.getReader();
+    (async()=>{ try{ while(reading){ const {value,done}=await rd.read(); if(done) break; try{ parser.push(dec.decode(value,{stream:true})); }catch(e){} } }catch(e){ serText('\n[read error: '+e.message+']\n'); } try{ rd.releaseLock(); }catch(e){} })();
+  }catch(e){ serText('connect failed: '+e.message+'\n'); if(port){ try{ await port.close(); }catch(_){} } port=null; writer=null; $('serBtn').disabled=false; $('serDis').disabled=true; }
+}
+async function serDisconnect(){
+  reading=false; clearInterval(hb);
+  try{ await serSend('d'); }catch(e){}
+  try{ writer.releaseLock(); }catch(e){} try{ await port.readable.cancel(); }catch(e){} try{ await port.close(); }catch(e){}
+  port=null; writer=null; $('serBtn').disabled=false; $('serDis').disabled=true; serText('\n--- disconnected ---\n');
+}
+$('serBtn').onclick=serConnect; $('serDis').onclick=serDisconnect;
+const sendLine=()=>{ const v=$('serIn').value; if(v!==''||true){ serSend(v+'\n').catch(e=>serText('send failed: '+e.message+'\n')); $('serIn').value=''; } };
+$('serSend').onclick=sendLine; $('serIn').addEventListener('keydown',e=>{ if(e.key==='Enter') sendLine(); });
+$('serDbg').addEventListener('change',()=>{ if(port) serSend($('serDbg').checked?'D':'d').catch(()=>{}); });
+let devBusy=false;
+async function showDeviceFrame(f,redraw){
+  if (devBusy && !redraw) return; devBusy=true;
+  try{
+    readParams(); const L=S.L, frame=await decodeFrame(f.jpeg), t=toTensor(frame,L.N), cv=$('devView');
+    paintFrame(cv,frame); paintInput($('devModel'),t,L.N,$('devModelCap')); $('devModelCap').textContent+=' — rebuilt by the page from the device JPEG (close reference: browser and device JPEG decoders differ slightly)';
+    let info=`frame ${f.n} kind ${f.kind} (${{I:'inference',C:'sample just saved',P:'preview while collecting'}[f.kind]||'?'}) layout ${f.layout}\n`, devDets=null;
+    const same=f.layout===`${L.N}x${L.c1}x${L.c2}`;
+    if (f.map && f.probs && f.probs.length>=2 && f.side*f.side*f.probs.length===f.map.length){
+      const C=f.probs.length, cells=f.side*f.side, sel=$('devOv').value, k=sel[0]==='c'?Math.min(C-1,+sel.slice(1)):1, mp=new Float32Array(f.map.length);
+      for (let i=0;i<mp.length;i++) mp[i]=f.map[i]/255;
+      devDets=decodeSample(mp,{C,cells,G:f.side},S.P).dets; drawHeat(cv,mp.subarray(k*cells,(k+1)*cells),f.side); drawDetections(cv,devDets,f.side,'#ffd23f');
+      $('devDets').innerHTML='<b>Device output</b> <span class="mu">(device map decoded by the page; the serial monitor shows the device\'s own list)</span>'+detTable(devDets,f.side);
+    } else $('devDets').innerHTML='';
+    if (f.probs && f.probs.length){
+      info+=`device: pred ${S.classes[+f.pred]||f.pred}  average map ${f.probs.map(v=>v.toFixed(4)).join(', ')}  peaks ${f.peaks.map(v=>v.toFixed(3)).join(', ')}\n`;
+      if (modelReady() && same && f.probs.length===L.C){
+        forward(S.model,t,S.ws); const pd=decodeSample(S.ws.fomo,L,S.P), pDiff=Math.max(...f.probs.map((v,i)=>Math.abs(v-S.ws.dense[i])));
+        let md=0; if (f.map&&f.side===L.G&&f.map.length===L.C*L.cells) for (let i=0;i<f.map.length;i++) md=Math.max(md,Math.abs(f.map[i]/255-S.ws.fomo[i]));
+        const c=((L.N>>1)*L.N+(L.N>>1))*3, inD=f.summary&&f.summary.length===3?Math.max(...f.summary.map((v,i)=>Math.abs(v-t[c+i]))):NaN;
+        drawDetections(cv,pd.dets,L.G,'#27e0ff');
+        let cmp=''; if (devDets){ const gts=devDets.map(d=>({cx:d.cx,cy:d.cy})), m=matchGreedy(pd.dets,gts,2); cmp=`page found ${pd.dets.length} object(s), device map ${devDets.length}; ${m.pairs.length} centroid pair(s) within 2 cells, mean distance ${m.pairs.length?(m.pairs.reduce((a,p)=>a+p.d,0)/m.pairs.length*240/L.G).toFixed(1)+' px':'—'}\n`; }
+        info+=`page (same input): average map ${Array.from(S.ws.dense).map(v=>v.toFixed(4)).join(', ')}\nlargest difference: average map ${pDiff.toFixed(4)}, map cell ${md.toFixed(3)}, input centre pixel ${Number.isFinite(inD)?inD.toFixed(3):'—'}\n${cmp}`+
+          (Number.isFinite(inD)&&inD>0.06?'VERDICT: the INPUTS differ (camera orientation/brightness, flip, JPEG decode). Compare the two model input views.':(pDiff>0.02?'VERDICT: inputs agree but answers differ: the WEIGHTS differ (is this myWeights.bin the one on the card?).':'VERDICT: inputs and answers agree.'));
+        info+='\n(yellow = device map, cyan = page network; the page uses the thresholds from section 4, the device its compiled MY_DET_* constants)';
+      } else info+=same?'(load or train a model with the same layout to compare)':`(page layout ${L.N}x${L.c1}x${L.c2}, device sent ${f.layout}: set the same layout to compare)`;
+    } else info+='(this frame kind carries only the picture)';
+    $('devInfo').textContent=info;
+  }catch(e){ $('devInfo').textContent='frame error: '+e.message; }
+  finally{ devBusy=false; }
+}
+
+/* ---------- init ---------- */
+renderLayout(); renderClasses(); drawCharts();
+log('index.v003 ready. Pick the SD folder or load a zip.');
+</script>
+</body></html>
